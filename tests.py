@@ -343,10 +343,15 @@ class ListEmailCommandTest(TestCase):
     def setUp(self):
         self.command = ListEmailCommand()
 
-    def test_invoke_should_pretty_format_list_from_session_as_json(self):
-        mock_session = Mock(get_email_list=lambda: [{'subject': 'Test'}])
+    def test_invoke_should_format_mail_summaries(self):
+        mock_session = Mock(get_email_list=lambda: [{'mail_subject': 'Test', 'mail_from': 'user@example.com', 'mail_id': '1234567'}])
         output = self.command.invoke(mock_session, None)
-        expect(output).to.equal(json.dumps([{'subject': 'Test'}], indent=2))
+        expect(output).to.equal('id: 1234567\nfrom: user@example.com\nsubject: Test\n\n')
+
+    def test_invoke_should_handle_unicode_chars(self):
+        mock_session = Mock(get_email_list=lambda: [{'mail_subject': u'Test\u0131', 'mail_from': 'user@example.com', 'mail_id': '1234567'}])
+        output = self.command.invoke(mock_session, None)
+        expect(output).to.equal(u'id: 1234567\nfrom: user@example.com\nsubject: Test\u0131\n\n')
 
 
 class GetEmailCommandTest(TestCase):

@@ -135,7 +135,18 @@ class ListEmailCommand(Command):
     
     def invoke(self, session, args):
         email_list = session.get_email_list()
-        return json.dumps(email_list, indent=2)
+        output = ''
+        for email in email_list:
+            output += self.format_email_summary(email) + '\n'
+        return output
+
+    def format_email_summary(self, email):
+        args = {
+            'id': email['mail_id'],
+            'from': email['mail_from'],
+            'subject': email['mail_subject'],
+        }
+        return u'id: {id}\nfrom: {from}\nsubject: {subject}\n'.format(**args)
 
 
 class GetEmailCommand(Command):
