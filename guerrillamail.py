@@ -6,11 +6,48 @@ from os.path import expanduser
 import sys
 
 import requests
+from datetime import datetime
 
 
 class GuerrillaMailException(Exception):
     def __init__(self, *args, **kwargs):
         super(GuerrillaMailException, self).__init__(*args, **kwargs)
+
+
+def _transform_dict(original, key_map):
+    result = {}
+    for (new_key, (old_key, transform_fn)) in key_map.items():
+        try:
+            result[new_key] = transform_fn(original[old_key])
+        except KeyError:
+            pass
+    return result
+
+
+class Mail(object):
+    @classmethod
+    def from_response(cls, response_data):
+        """
+        Factory method to create a Mail instance from a Guerrillamail response
+        dict.
+        """
+        identity = lambda x: x
+        return Mail(**_transform_dict(response_data, {
+            'guid': ('mail_id', identity),
+            'subject': ('mail_subject', identity),
+            'sender': ('mail_from', identity),
+            'datetime': ('mail_timestamp', lambda x: datetime.utcfromtimestamp(int(x))),
+            'read': ('mail_read', int),
+            'exerpt': ('mail_exerpt', identity),
+        }))
+
+    def __init__(self, guid=None, subject=None, sender=None, datetime=None, read=False, exerpt=None):
+        self.guid = guid
+        self.subject = subject
+        self.sender = sender
+        self.datetime = datetime
+        self.read = read
+        self.exerpt = exerpt
 
 
 class GuerrillaMailSession(object):

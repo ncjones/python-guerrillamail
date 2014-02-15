@@ -6,7 +6,62 @@ from mock import patch, DEFAULT, Mock
 from sure import expect
 
 from guerrillamail import GuerrillaMailClient, GuerrillaMailException, GuerrillaMailSession, main, GetAddressCommand, \
-    ListEmailCommand, GetEmailCommand, parse_args, get_command, SetAddressCommand
+    ListEmailCommand, GetEmailCommand, parse_args, get_command, SetAddressCommand, Mail
+from datetime import datetime
+
+
+class MailTest(TestCase):
+    def test_from_response_should_map_subject(self):
+        mail = Mail.from_response({'mail_subject': 'Hello'})
+        expect(mail.subject).to.equal('Hello')
+
+    def test_from_response_should_default_subject_to_none(self):
+        mail = Mail.from_response({})
+        expect(mail.subject).to.be.none
+
+    def test_from_response_should_map_sender(self):
+        mail = Mail.from_response({'mail_from': 'test@example.com'})
+        expect(mail.sender).to.equal('test@example.com')
+
+    def test_from_response_should_default_sender_to_none(self):
+        mail = Mail.from_response({})
+        expect(mail.sender).to.be.none
+
+    def test_from_response_should_map_guid(self):
+        mail = Mail.from_response({'mail_id': '12345'})
+        expect(mail.guid).to.equal('12345')
+
+    def test_from_response_should_default_guid_to_none(self):
+        mail = Mail.from_response({})
+        expect(mail.guid).to.be.none
+
+    def test_from_response_should_map_read_as_bool_false(self):
+        mail = Mail.from_response({'mail_read': '0'})
+        expect(mail.read).to.be.false
+
+    def test_from_response_should_map_read_as_bool_true(self):
+        mail = Mail.from_response({'mail_read': '1'})
+        expect(mail.read).to.be.true
+
+    def test_from_response_should_default_read_to_false(self):
+        mail = Mail.from_response({})
+        expect(mail.read).to.be.false
+
+    def test_from_response_should_map_datetime(self):
+        mail = Mail.from_response({'mail_timestamp': '1392459985'})
+        expect(mail.datetime).to.equal(datetime(2014, 2, 15, 10, 26, 25))
+
+    def test_from_response_should_default_datetime_to_none(self):
+        mail = Mail.from_response({})
+        expect(mail.datetime).to.be.none
+
+    def test_from_response_should_map_exeprt(self):
+        mail = Mail.from_response({'mail_exerpt': 'A brief message....'})
+        expect(mail.exerpt).to.equal('A brief message....')
+
+    def test_from_response_should_default_exerpt_to_none(self):
+        mail = Mail.from_response({})
+        expect(mail.exerpt).to.be.none
 
 
 class GuerrillaMailClientTest(TestCase):
