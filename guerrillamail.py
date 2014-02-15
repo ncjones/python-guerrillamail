@@ -39,6 +39,9 @@ class GuerrillaMailSession(object):
         data = self._delegate_to_client('get_email_address')
         return data['email_addr']
 
+    def set_email_address(self, address_local_part):
+        self._delegate_to_client('set_email_address', address_local_part)
+
     def get_email_list(self, offset=0):
         response_data = self._delegate_to_client('get_email_list', offset=offset)
         email_list = response_data.get('list')
@@ -79,6 +82,9 @@ class GuerrillaMailClient(object):
     def get_email(self, email_id, session_id=None):
         return self._do_request(session_id, f='fetch_email', email_id=email_id)
 
+    def set_email_address(self, address_local_part, session_id=None):
+        return self._do_request(session_id, f='set_email_user', email_user=address_local_part)
+
 
 SETTINGS_FILE = '~/.guerrillamail'
 
@@ -107,6 +113,19 @@ class GetAddressCommand(Command):
     
     def invoke(self, session, args):
         return session.get_email_address()
+
+
+class SetAddressCommand(Command):
+    name = 'setaddr'
+    help = 'Set the current email address'
+    description = 'Set the email address of the current Guerrillamail session'
+    params = [{
+        'name': 'address',
+        'help': 'an email address local part (excludes domain and @ symbol)'
+    }]
+
+    def invoke(self, session, args):
+        session.set_email_address(args.address)
     
     
 class ListEmailCommand(Command):
@@ -133,7 +152,7 @@ class GetEmailCommand(Command):
         return json.dumps(email, indent=2)
 
 
-COMMAND_TYPES = [GetAddressCommand, ListEmailCommand, GetEmailCommand]
+COMMAND_TYPES = [GetAddressCommand, SetAddressCommand, ListEmailCommand, GetEmailCommand]
 
 
 def parse_args(args):
@@ -144,7 +163,8 @@ def parse_args(args):
     for Command in COMMAND_TYPES:
         command_parser = subparsers.add_parser(Command.name, help=Command.help, description=Command.description)
         for param in Command.params:
-            command_parser.add_argument(param['name'], help=param['help'])
+            param_name = param['name']
+            command_parser.add_argument(param_name, metavar='<{0}>'.format(param_name), help=param['help'])
     return parser.parse_args(args)
 
 
@@ -159,7 +179,9 @@ def main(*args):
     args = parse_args(args)
     settings = load_settings()
     session = GuerrillaMailSession(**settings)
-    print get_command(args.command).invoke(session, args)
+    output = get_command(args.command).invoke(session, args)
+    if output is not None:
+        print output
     settings['session_id'] = session.session_id
     save_settings(settings)
 
