@@ -6,7 +6,7 @@ from mock import patch, DEFAULT, Mock
 from sure import expect
 
 from guerrillamail import GuerrillaMailClient, GuerrillaMailException, GuerrillaMailSession, main, GetAddressCommand, \
-    ListEmailCommand, GetEmailCommand, parse_args, get_command
+    ListEmailCommand, GetEmailCommand, parse_args, get_command, SetAddressCommand
 
 
 class GuerrillaMailClientTest(TestCase):
@@ -48,6 +48,44 @@ class GuerrillaMailClientTest(TestCase):
     def test_get_email_address_should_raise_exception_on_failed_request(self):
         httpretty.register_uri(httpretty.GET, 'http://test-host/ajax.php', status=500)
         expect(self.client.get_email_address).when.called_with().should.throw(GuerrillaMailException)
+
+    @httpretty.activate
+    def test_set_email_address_should_send_query_params(self):
+        response_body = '{"email_addr":""}'
+        httpretty.register_uri(httpretty.GET, 'http://test-host/ajax.php',
+                               body=response_body, match_querystring=True)
+        self.client.set_email_address('newaddr')
+        expect(httpretty.last_request()).to.have.property('querystring').being.equal({
+            'f': ['set_email_user'],
+            'ip': ['127.0.0.1'],
+            'email_user': ['newaddr'],
+        })
+
+    @httpretty.activate
+    def test_set_email_address_should_include_session_id_query_param_when_present(self):
+        response_body = '{"email_addr":""}'
+        httpretty.register_uri(httpretty.GET, 'http://test-host/ajax.php',
+                               body=response_body, match_querystring=True)
+        self.client.set_email_address('newaddr', session_id=1)
+        expect(httpretty.last_request()).to.have.property('querystring').being.equal({
+            'f': ['set_email_user'],
+            'ip': ['127.0.0.1'],
+            'email_user': ['newaddr'],
+            'sid_token': ['1'],
+        })
+
+    @httpretty.activate
+    def test_set_email_address_should_returned_deserialized_json(self):
+        response_body = '{"email_addr":"test@example.com"}'
+        httpretty.register_uri(httpretty.GET, 'http://test-host/ajax.php',
+                               body=response_body, match_querystring=True)
+        response = self.client.set_email_address('newaddr')
+        expect(response).to.equal({'email_addr': 'test@example.com'})
+
+    @httpretty.activate
+    def test_set_email_address_should_raise_exception_on_failed_request(self):
+        httpretty.register_uri(httpretty.GET, 'http://test-host/ajax.php', status=500)
+        expect(self.client.set_email_address).when.called_with('newaddr').should.throw(GuerrillaMailException)
 
     @httpretty.activate
     def test_get_email_list_should_send_query_params(self):
@@ -174,6 +212,39 @@ class GuerrillaMailSessionTest(TestCase):
         self.session.get_email_address()
         expect(self.session.session_id).to.equal(1)
 
+    def test_set_email_address_should_return_none(self, **kwargs):
+        self.setup_mocks(**kwargs)
+        self.mock_client.set_email_address.return_value = {'email_addr': 'test@example.com'}
+        result = self.session.set_email_address('newaddr')
+        expect(result).to.be.none
+
+    def test_set_email_address_should_call_client(self, **kwargs):
+        self.setup_mocks(**kwargs)
+        self.mock_client.set_email_address.return_value = {'email_addr': ''}
+        self.session.set_email_address('newaddr')
+        self.mock_client.set_email_address.assert_called_once_with(session_id=None, address_local_part='newaddr')
+
+    def test_set_email_address_should_call_client_with_session_id_when_set(self, **kwargs):
+        self.setup_mocks(**kwargs)
+        self.mock_client.set_email_address.return_value = {'email_addr': ''}
+        self.session.session_id = 1
+        self.session.set_email_address('newaddr')
+        self.mock_client.set_email_address.assert_called_once_with(session_id=1, address_local_part='newaddr')
+
+    def test_set_email_address_should_update_session_id_when_included_in_response(self, **kwargs):
+        self.setup_mocks(**kwargs)
+        self.mock_client.set_email_address.return_value = {'email_addr': '', 'sid_token': 1}
+        assert self.session.session_id == None
+        self.session.set_email_address('newaddr')
+        expect(self.session.session_id).to.equal(1)
+
+    def test_set_email_address_should_not_update_session_id_when_not_included_in_response(self, **kwargs):
+        self.setup_mocks(**kwargs)
+        self.mock_client.set_email_address.return_value = {'email_addr': ''}
+        self.session.session_id = 1
+        self.session.set_email_address('newaddr')
+        expect(self.session.session_id).to.equal(1)
+
     def test_get_email_list_should_extract_list_from_response(self, **kwargs):
         self.setup_mocks(**kwargs)
         self.mock_client.get_email_list.return_value = {'list': [{'subject': 'Hello'}]}
@@ -251,6 +322,23 @@ class GetAddressCommandTest(TestCase):
         expect(output).to.equal('test@example.com')
 
 
+class SetAddressCommandTest(TestCase):
+    def setUp(self):
+        self.command = SetAddressCommand()
+
+    def test_invoke_should_call_set_email_address_on_session(self):
+        mock_session = Mock()
+        mock_args = Mock(address='john91')
+        self.command.invoke(mock_session, mock_args)
+        mock_session.set_email_address.assert_called_with('john91')
+
+    def test_invoke_should_have_no_output(self):
+        mock_session = Mock()
+        mock_args = Mock(address='john91')
+        output = self.command.invoke(mock_session, mock_args)
+        expect(output).to.be.none
+
+
 class ListEmailCommandTest(TestCase):
     def setUp(self):
         self.command = ListEmailCommand()
@@ -277,6 +365,11 @@ class GuerrillaMailParseArgsTest(TestCase):
         args = parse_args(['address'])
         expect(args.command).to.equal('address')
 
+    def test_parse_args_should_extract_set_address_command(self, **kwargs):
+        args = parse_args(['setaddr', 'john91'])
+        expect(args.command).to.equal('setaddr')
+        expect(args.address).to.equal('john91')
+
     def test_parse_args_should_extract_list_command(self, **kwargs):
         args = parse_args(['list'])
         expect(args.command).to.equal('list')
@@ -297,6 +390,10 @@ class GuerrillaMailGetCommandTest(TestCase):
     def test_get_address_command_should_return_get_address_command_instance(self):
         command = get_command('address')
         expect(command).to.be.a('guerrillamail.GetAddressCommand')
+
+    def test_set_address_command_should_return_set_address_command_instance(self):
+        command = get_command('setaddr')
+        expect(command).to.be.a('guerrillamail.SetAddressCommand')
 
     def test_get_list_command_should_return_get_list_command_instance(self):
         command = get_command('list')

@@ -40,7 +40,7 @@ class GuerrillaMailSession(object):
         return data['email_addr']
 
     def set_email_address(self, address_local_part):
-        self._delegate_to_client('set_email_address', address_local_part)
+        self._delegate_to_client('set_email_address', address_local_part=address_local_part)
 
     def get_email_list(self, offset=0):
         response_data = self._delegate_to_client('get_email_list', offset=offset)
