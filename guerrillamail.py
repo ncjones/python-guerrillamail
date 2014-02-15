@@ -115,7 +115,8 @@ class ListEmailCommand(Command):
     description = 'Get the contents of the inbox associated with the current session'
     
     def invoke(self, session, args):
-        return session.get_email_list()
+        email_list = session.get_email_list()
+        return json.dumps(email_list, indent=2)
 
 
 class GetEmailCommand(Command):
@@ -128,7 +129,8 @@ class GetEmailCommand(Command):
     }]
     
     def invoke(self, session, args):
-        session.get_email(args.id)
+        email = session.get_email(args.id)
+        return json.dumps(email, indent=2)
 
 
 COMMANDS = [GetAddressCommand(), ListEmailCommand(), GetEmailCommand()]

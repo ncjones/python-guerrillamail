@@ -1,10 +1,12 @@
-from unittest.case import TestCase
+import json
+from unittest.case import TestCase, skip
 
 import httpretty
 from mock import patch, DEFAULT, Mock
 from sure import expect
 
-from guerrillamail import GuerrillaMailClient, GuerrillaMailException, GuerrillaMailSession, main
+from guerrillamail import GuerrillaMailClient, GuerrillaMailException, GuerrillaMailSession, main, GetAddressCommand, \
+    ListEmailCommand, GetEmailCommand
 
 
 class GuerrillaMailClientTest(TestCase):
@@ -239,6 +241,37 @@ class GuerrillaMailSessionTest(TestCase):
         expect(self.session.session_id).to.equal(1)
 
 
+class GetAddressCommandTest(TestCase):
+    def setUp(self):
+        self.command = GetAddressCommand()
+
+    def test_invoke_should_get_email_address_from_session(self):
+        mock_session = Mock(get_email_address=lambda: 'test@example.com')
+        output = self.command.invoke(mock_session, None)
+        expect(output).to.equal('test@example.com')
+
+
+class ListEmailCommandTest(TestCase):
+    def setUp(self):
+        self.command = ListEmailCommand()
+
+    def test_invoke_should_pretty_format_list_from_session_as_json(self):
+        mock_session = Mock(get_email_list=lambda: [{'subject': 'Test'}])
+        output = self.command.invoke(mock_session, None)
+        expect(output).to.equal(json.dumps([{'subject': 'Test'}], indent=2))
+
+
+class GetEmailCommandTest(TestCase):
+    def setUp(self):
+        self.command = GetEmailCommand()
+
+    def test_invoke_should_pretty_format_email_from_session_as_json(self):
+        mock_session = Mock(get_email=lambda _: {'subject': 'Test'})
+        mock_args = Mock(id=1)
+        output = self.command.invoke(mock_session, mock_args)
+        expect(output).to.equal(json.dumps({'subject': 'Test'}, indent=2))
+
+
 @patch.multiple('guerrillamail', load_settings=DEFAULT, save_settings=DEFAULT, GuerrillaMailSession=DEFAULT)
 class GuerrillaMailMainTest(TestCase):
     def setup_mocks(self, GuerrillaMailSession, load_settings, **kwargs):
@@ -253,11 +286,13 @@ class GuerrillaMailMainTest(TestCase):
 
     def test_list_command_should_invoke_get_email_list(self, **kwargs):
         self.setup_mocks(**kwargs)
+        self.mock_session.get_email_list.return_value = []
         main('list')
         self.mock_session.get_email_list.assert_called_once_with()
 
     def test_get_command_should_invoke_get_email(self, **kwargs):
         self.setup_mocks(**kwargs)
+        self.mock_session.get_email.return_value = {}
         main('get', '123')
         self.mock_session.get_email.assert_called_once_with('123')
 
