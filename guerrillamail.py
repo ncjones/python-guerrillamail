@@ -99,7 +99,8 @@ def load_settings():
 
 def save_settings(settings):
     with open(expanduser(SETTINGS_FILE), 'w+') as f:
-        json.dump(settings, f)
+        json.dump(settings, f, indent=4)
+        f.write('\n')
 
 
 class Command(object):
