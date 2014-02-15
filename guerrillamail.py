@@ -133,28 +133,33 @@ class GetEmailCommand(Command):
         return json.dumps(email, indent=2)
 
 
-COMMANDS = [GetAddressCommand(), ListEmailCommand(), GetEmailCommand()]
+COMMAND_TYPES = [GetAddressCommand, ListEmailCommand, GetEmailCommand]
 
 
-def _create_args_parser():
+def parse_args(args):
     parser = argparse.ArgumentParser(description='''Call a Guerrillamail web service.
-        All commands operate on the current Guerrillamail session which is stored in {0}. If a session does not exist or
-        has timed out a new one will be created.'''.format(SETTINGS_FILE))
+        All commands operate on the current Guerrillamail session which is stored in {0}. If a session does not exist
+        or has timed out a new one will be created.'''.format(SETTINGS_FILE))
     subparsers = parser.add_subparsers(dest='command', metavar='<command>')
-    for command in COMMANDS:
-        command_parser = subparsers.add_parser(command.name, help=command.help, description=command.description)
-        for param in command.params:
+    for Command in COMMAND_TYPES:
+        command_parser = subparsers.add_parser(Command.name, help=Command.help, description=Command.description)
+        for param in Command.params:
             command_parser.add_argument(param['name'], help=param['help'])
-    return parser
+    return parser.parse_args(args)
+
+
+def get_command(command_name):
+    try:
+        return [C() for C in COMMAND_TYPES if C.name == command_name][0]
+    except IndexError:
+        raise ValueError('Invalid command: ' + command_name)
 
 
 def main(*args):
-    parser = _create_args_parser()
-    args = parser.parse_args(args)
+    args = parse_args(args)
     settings = load_settings()
     session = GuerrillaMailSession(**settings)
-    command = [c for c in COMMANDS if c.name == args.command][0]
-    print command.invoke(session, args)
+    print get_command(args.command).invoke(session, args)
     settings['session_id'] = session.session_id
     save_settings(settings)
 

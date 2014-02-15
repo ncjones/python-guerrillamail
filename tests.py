@@ -1,12 +1,12 @@
 import json
-from unittest.case import TestCase, skip
+from unittest.case import TestCase
 
 import httpretty
 from mock import patch, DEFAULT, Mock
 from sure import expect
 
 from guerrillamail import GuerrillaMailClient, GuerrillaMailException, GuerrillaMailSession, main, GetAddressCommand, \
-    ListEmailCommand, GetEmailCommand
+    ListEmailCommand, GetEmailCommand, parse_args, get_command
 
 
 class GuerrillaMailClientTest(TestCase):
@@ -272,31 +272,78 @@ class GetEmailCommandTest(TestCase):
         expect(output).to.equal(json.dumps({'subject': 'Test'}, indent=2))
 
 
-@patch.multiple('guerrillamail', load_settings=DEFAULT, save_settings=DEFAULT, GuerrillaMailSession=DEFAULT)
+class GuerrillaMailParseArgsTest(TestCase):
+    def test_parse_args_should_extract_address_command(self, **kwargs):
+        args = parse_args(['address'])
+        expect(args.command).to.equal('address')
+
+    def test_parse_args_should_extract_list_command(self, **kwargs):
+        args = parse_args(['list'])
+        expect(args.command).to.equal('list')
+
+    def test_parse_args_should_extract_get_command(self, **kwargs):
+        args = parse_args(['get', '123'])
+        expect(args.command).to.equal('get')
+        expect(args.id).to.equal('123')
+
+    def test_parse_args_should_reject_unknown_command(self, **kwargs):
+        self.assertRaises(SystemExit, parse_args, ['cheese'])
+
+    def test_parse_args_should_reject_get_command_with_id_missing(self, **kwargs):
+        self.assertRaises(SystemExit, parse_args, ['get'])
+
+
+class GuerrillaMailGetCommandTest(TestCase):
+    def test_get_address_command_should_return_get_address_command_instance(self):
+        command = get_command('address')
+        expect(command).to.be.a('guerrillamail.GetAddressCommand')
+
+    def test_get_list_command_should_return_get_list_command_instance(self):
+        command = get_command('list')
+        expect(command).to.be.a('guerrillamail.ListEmailCommand')
+
+    def test_get_get_command_should_return_get_email_command_instance(self):
+        command = get_command('get')
+        expect(command).to.be.a('guerrillamail.GetEmailCommand')
+
+    def test_get_unknown_command_should_raise_exception(self):
+        expect(get_command).when.called_with('cheese').to.throw(ValueError)
+
+
+@patch.multiple('guerrillamail', load_settings=DEFAULT, save_settings=DEFAULT, GuerrillaMailSession=DEFAULT,
+                parse_args=DEFAULT, get_command=DEFAULT)
 class GuerrillaMailMainTest(TestCase):
-    def setup_mocks(self, GuerrillaMailSession, load_settings, **kwargs):
+    def setup_mocks(self, GuerrillaMailSession, load_settings, parse_args, get_command, **kwargs):
         load_settings.return_value = {}
         self.mock_session = Mock()
+        self.mock_args = Mock()
+        self.mock_command = Mock()
         GuerrillaMailSession.return_value = self.mock_session
+        parse_args.return_value = self.mock_args
+        get_command.return_value = self.mock_command
 
-    def test_address_command_should_invoke_get_email_address(self, **kwargs):
+    def test_main_should_create_session_using_settings(self, GuerrillaMailSession, load_settings, **kwargs):
+        self.setup_mocks(GuerrillaMailSession=GuerrillaMailSession, load_settings=load_settings, **kwargs)
+        load_settings.return_value = {'arg1': 1, 'arg2': 'cheese'}
+        main()
+        GuerrillaMailSession.assert_called_with(arg1=1, arg2='cheese')
+
+    def test_main_should_get_command_by_command_name_arg(self, get_command, **kwargs):
+        self.setup_mocks(get_command=get_command, **kwargs)
+        self.mock_args.command = 'cheese'
+        main()
+        get_command.assert_called_with('cheese')
+
+    def test_main_should_invoke_command(self, **kwargs):
         self.setup_mocks(**kwargs)
-        main('address')
-        self.mock_session.get_email_address.assert_called_once_with()
+        main()
+        self.mock_command.invoke.assert_called_once_with(self.mock_session, self.mock_args)
 
-    def test_list_command_should_invoke_get_email_list(self, **kwargs):
+    def test_main_should_save_settings_with_updated_session_id(self, save_settings, **kwargs):
         self.setup_mocks(**kwargs)
-        self.mock_session.get_email_list.return_value = []
-        main('list')
-        self.mock_session.get_email_list.assert_called_once_with()
-
-    def test_get_command_should_invoke_get_email(self, **kwargs):
-        self.setup_mocks(**kwargs)
-        self.mock_session.get_email.return_value = {}
-        main('get', '123')
-        self.mock_session.get_email.assert_called_once_with('123')
-
-    def test_get_command_should_exit_when_id_missing(self, **kwargs):
-        self.setup_mocks(**kwargs)
-        self.assertRaises(SystemExit, main, 'get')
-
+        self.mock_args.command = 'cheese'
+        def set_session_id(*args):
+            self.mock_session.session_id = 123
+        self.mock_command.invoke.side_effect = set_session_id
+        main()
+        save_settings.assert_called_with({'session_id': 123})
