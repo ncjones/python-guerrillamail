@@ -72,38 +72,52 @@ def save_settings(settings):
         json.dump(settings, f)
 
 
-_COMMANDS = [{
-        'name': 'address',
-        'method': 'get_email_address',
-        'help': 'Get the current email address',
-        'description': 'Get the email address of the current Guerrillamail session',
-    }, {
-        'name': 'list',
-        'method': 'get_email_list',
-        'help': 'Get the current inbox contents',
-        'description': 'Get the contents of the inbox associated with the current session'
-    },
-    {
-        'name': 'get',
-        'method': 'get_email',
-        'help': 'Get an email message by id.',
-        'description': 'Get an email message by id. The email id need not be associated with the current session.',
-        'params': [{
-            'name': 'id',
-            'help': 'an email id'
-        }]
+class Command(object):
+    params = []
+
+
+class GetAddressCommand(Command):
+    name = 'address'
+    help = 'Get the current email address'
+    description = 'Get the email address of the current Guerrillamail session'
+    
+    def invoke(self, client, args):
+        return client.get_email_address()
+    
+    
+class ListEmailCommand(Command):
+    name = 'list'
+    help = 'Get the current inbox contents'
+    description = 'Get the contents of the inbox associated with the current session'
+    
+    def invoke(self, client, args):
+        return client.get_email_list()
+
+
+class GetEmailCommand(Command):
+    name = 'get'
+    help = 'Get an email message by id.'
+    description = 'Get an email message by id. The email id need not be associated with the current session.'
+    params = [{
+        'name': 'id',
+        'help': 'an email id'
     }]
+    
+    def invoke(self, client, args):
+        client.get_email(args.id)
+
+
+COMMANDS = [GetAddressCommand(), ListEmailCommand(), GetEmailCommand()]
 
 
 def _create_args_parser():
     parser = argparse.ArgumentParser(description='''Call a Guerrillamail web service.
         All commands operate on the current Guerrillamail session which is stored in {0}. If a session does not exist or
         has timed out a new one will be created.'''.format(SETTINGS_FILE))
-    subparsers = parser.add_subparsers(dest='command', metavar='command')
-    for command in _COMMANDS:
-        command_parser = subparsers.add_parser(command['name'], help=command['help'], description=command['description'])
-        params = command.get('params') or []
-        for param in params:
+    subparsers = parser.add_subparsers(dest='command', metavar='<command>')
+    for command in COMMANDS:
+        command_parser = subparsers.add_parser(command.name, help=command.help, description=command.description)
+        for param in command.params:
             command_parser.add_argument(param['name'], help=param['help'])
     return parser
 
@@ -113,10 +127,8 @@ def main(*args):
     args = parser.parse_args(args)
     settings = load_settings()
     client = GuerrillaMailClient(**settings)
-    command = [c for c in _COMMANDS if c['name'] == args.command][0]
-    command_params = command.get('params')
-    param_vals = [getattr(args, p['name']) for p in command_params] if command_params else []
-    print getattr(client, command['method'])(*param_vals)
+    command = [c for c in COMMANDS if c.name == args.command][0]
+    print command.invoke(client, args)
     settings['session_id'] = client.session_id
     save_settings(settings)
 
