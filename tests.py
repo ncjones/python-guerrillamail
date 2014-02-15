@@ -300,11 +300,33 @@ class GuerrillaMailSessionTest(TestCase):
         self.session.set_email_address('newaddr')
         expect(self.session.session_id).to.equal(1)
 
-    def test_get_email_list_should_extract_list_from_response(self, **kwargs):
+    def test_get_email_list_should_extract_response_list(self, **kwargs):
         self.setup_mocks(**kwargs)
-        self.mock_client.get_email_list.return_value = {'list': [{'subject': 'Hello'}]}
+        self.mock_client.get_email_list.return_value = {'list': []}
         email_list = self.session.get_email_list()
-        expect(email_list).to.equal([{'subject': 'Hello'}])
+        expect(email_list).to.have.length_of(0)
+
+    def test_get_email_list_should_create_mail_instances_from_response_list(self, **kwargs):
+        self.setup_mocks(**kwargs)
+        self.mock_client.get_email_list.return_value = {
+            'list': [{
+                'mail_id': '1',
+                'mail_subject': 'Hello',
+                'mail_from': 'user@example.com',
+                'mail_timestamp': '1392501749',
+                'mail_read': '0',
+                'mail_exerpt': 'Hi there....',
+            }]
+        }
+        email_list = self.session.get_email_list()
+        email = email_list[0]
+        expect(email_list).to.have.length_of(1)
+        expect(email).to.have.property('guid').with_value.being.equal('1')
+        expect(email).to.have.property('subject').with_value.being.equal('Hello')
+        expect(email).to.have.property('sender').with_value.being.equal('user@example.com')
+        expect(email).to.have.property('datetime').with_value.being.equal(datetime(2014, 2, 15, 22, 2, 29))
+        expect(email).to.have.property('read').with_value.being.false
+        expect(email).to.have.property('exerpt').with_value.being.equal('Hi there....')
 
     def test_get_email_list_should_call_client(self, **kwargs):
         self.setup_mocks(**kwargs)
@@ -399,12 +421,12 @@ class ListEmailCommandTest(TestCase):
         self.command = ListEmailCommand()
 
     def test_invoke_should_format_mail_summaries(self):
-        mock_session = Mock(get_email_list=lambda: [{'mail_subject': 'Test', 'mail_from': 'user@example.com', 'mail_id': '1234567'}])
+        mock_session = Mock(get_email_list=lambda: [Mail(subject='Test', sender='user@example.com', guid='1234567')])
         output = self.command.invoke(mock_session, None)
         expect(output).to.equal('id: 1234567\nfrom: user@example.com\nsubject: Test\n\n')
 
     def test_invoke_should_handle_unicode_chars(self):
-        mock_session = Mock(get_email_list=lambda: [{'mail_subject': u'Test\u0131', 'mail_from': 'user@example.com', 'mail_id': '1234567'}])
+        mock_session = Mock(get_email_list=lambda: [Mail(subject=u'Test\u0131', sender='user@example.com', guid='1234567')])
         output = self.command.invoke(mock_session, None)
         expect(output).to.equal(u'id: 1234567\nfrom: user@example.com\nsubject: Test\u0131\n\n')
 

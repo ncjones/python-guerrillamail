@@ -82,7 +82,7 @@ class GuerrillaMailSession(object):
     def get_email_list(self, offset=0):
         response_data = self._delegate_to_client('get_email_list', offset=offset)
         email_list = response_data.get('list')
-        return email_list if email_list else []
+        return [Mail.from_response(e) for e in email_list] if email_list else []
 
     def get_email(self, email_id):
         return self._delegate_to_client('get_email', email_id=email_id)
@@ -179,12 +179,7 @@ class ListEmailCommand(Command):
         return output
 
     def format_email_summary(self, email):
-        args = {
-            'id': email['mail_id'],
-            'from': email['mail_from'],
-            'subject': email['mail_subject'],
-        }
-        return u'id: {id}\nfrom: {from}\nsubject: {subject}\n'.format(**args)
+        return u'id: {email.guid}\nfrom: {email.sender}\nsubject: {email.subject}\n'.format(email=email)
 
 
 class GetEmailCommand(Command):
