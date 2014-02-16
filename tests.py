@@ -279,6 +279,13 @@ class GuerrillaMailSessionTest(TestCase):
         self.session.session_id = 1
         self.session.get_email_address()
         expect(self.session.session_id).to.equal(1)
+        
+    def test_get_email_address_should_update_email_timestamp(self, **kwargs):
+        self.setup_mocks(**kwargs)
+        self.mock_client.get_email_address.return_value = {'email_addr': '', 'email_timestamp': 1234}
+        assert self.session.email_timestamp == 0
+        self.session.get_email_address()
+        expect(self.session.email_timestamp).to.equal(1234)
 
     def test_set_email_address_should_return_none(self, **kwargs):
         self.setup_mocks(**kwargs)
@@ -312,6 +319,13 @@ class GuerrillaMailSessionTest(TestCase):
         self.session.session_id = 1
         self.session.set_email_address('newaddr')
         expect(self.session.session_id).to.equal(1)
+
+    def test_set_email_address_should_update_email_timestamp(self, **kwargs):
+        self.setup_mocks(**kwargs)
+        self.mock_client.set_email_address.return_value = {'email_addr': '', 'email_timestamp': 1234}
+        assert self.session.email_timestamp == 0
+        self.session.set_email_address('newaddr')
+        expect(self.session.email_timestamp).to.equal(1234)
 
     def test_get_email_list_should_extract_response_list(self, **kwargs):
         self.setup_mocks(**kwargs)
@@ -612,11 +626,12 @@ class GuerrillaMailMainTest(TestCase):
     def test_main_should_save_settings_with_updated_session_id(self, save_settings, **kwargs):
         self.setup_mocks(**kwargs)
         self.mock_args.command = 'cheese'
-        def set_session_id(*args):
+        def set_session_state(*args):
             self.mock_session.session_id = 123
-        self.mock_command.invoke.side_effect = set_session_id
+            self.mock_session.email_timestamp = 4321
+        self.mock_command.invoke.side_effect = set_session_state
         main()
-        save_settings.assert_called_with({'session_id': 123})
+        save_settings.assert_called_with({'session_id': 123, 'email_timestamp': 4321})
 
     def test_main_should_capture_guerrillamail_exception(self, **kwargs):
         self.setup_mocks(**kwargs)

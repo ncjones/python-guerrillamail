@@ -86,20 +86,25 @@ class GuerrillaMailSession(object):
 
     This class is not thread safe.
     """
-    def __init__(self, session_id=None, **kwargs):
+    def __init__(self, session_id=None, email_timestamp=0, **kwargs):
         self.client = GuerrillaMailClient(**kwargs)
         self.session_id = session_id
+        self.email_timestamp = email_timestamp
 
-    def _update_session_id(self, response_data):
+    def _update_session_state(self, response_data):
         try:
             self.session_id = response_data['sid_token']
+        except KeyError:
+            pass
+        try:
+            self.email_timestamp = response_data['email_timestamp']
         except KeyError:
             pass
 
     def _delegate_to_client(self, method_name, *args, **kwargs):
         client_method = getattr(self.client, method_name)
         response_data = client_method(session_id=self.session_id, *args, **kwargs)
-        self._update_session_id(response_data)
+        self._update_session_state(response_data)
         return response_data
 
     def get_email_address(self):
@@ -279,6 +284,7 @@ def main(*args):
         if output is not None:
             print(output)
     settings['session_id'] = session.session_id
+    settings['email_timestamp'] = session.email_timestamp
     save_settings(settings)
 
 
