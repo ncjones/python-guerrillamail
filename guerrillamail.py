@@ -39,15 +39,17 @@ class Mail(object):
             'datetime': ('mail_timestamp', lambda x: datetime.utcfromtimestamp(int(x))),
             'read': ('mail_read', int),
             'exerpt': ('mail_exerpt', identity),
+            'body': ('mail_body', identity),
         }))
 
-    def __init__(self, guid=None, subject=None, sender=None, datetime=None, read=False, exerpt=None):
+    def __init__(self, guid=None, subject=None, sender=None, datetime=None, read=False, exerpt=None, body=None):
         self.guid = guid
         self.subject = subject
         self.sender = sender
         self.datetime = datetime
         self.read = read
         self.exerpt = exerpt
+        self.body = body
 
 
 class GuerrillaMailSession(object):
@@ -85,7 +87,7 @@ class GuerrillaMailSession(object):
         return [Mail.from_response(e) for e in email_list] if email_list else []
 
     def get_email(self, email_id):
-        return self._delegate_to_client('get_email', email_id=email_id)
+        return Mail.from_response(self._delegate_to_client('get_email', email_id=email_id))
 
 
 class GuerrillaMailClient(object):
@@ -193,7 +195,10 @@ class GetEmailCommand(Command):
     
     def invoke(self, session, args):
         email = session.get_email(args.id)
-        return json.dumps(email, indent=2)
+        return self.format_email(email)
+
+    def format_email(self, email):
+        return u'From: {email.sender}\nDate: {email.datetime}\nSubject: {email.subject}\n\n{email.body}\n'.format(email=email)
 
 
 COMMAND_TYPES = [GetAddressCommand, SetAddressCommand, ListEmailCommand, GetEmailCommand]

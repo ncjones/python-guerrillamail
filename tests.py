@@ -1,4 +1,3 @@
-import json
 from unittest.case import TestCase
 
 import httpretty
@@ -62,6 +61,20 @@ class MailTest(TestCase):
     def test_from_response_should_default_exerpt_to_none(self):
         mail = Mail.from_response({})
         expect(mail.exerpt).to.be.none
+
+    def test_from_response_should_map_body(self):
+        mail = Mail.from_response({'mail_body': 'A brief message from our sponsors'})
+        expect(mail.body).to.equal('A brief message from our sponsors')
+
+    def test_from_response_should_default_body_to_none(self):
+        mail = Mail.from_response({})
+        expect(mail.body).to.be.none
+
+    def test_from_response_should_ignore_unknown_properties(self):
+        mail = Mail.from_response({
+            "mail_recipient": "john",
+        })
+        expect(mail).to.not_have.property('recipient')
 
 
 class GuerrillaMailClientTest(TestCase):
@@ -355,11 +368,25 @@ class GuerrillaMailSessionTest(TestCase):
         self.session.get_email_list()
         expect(self.session.session_id).to.equal(1)
 
-    def test_get_email_should_return_client_response_data(self, **kwargs):
+    def test_get_email_should_create_mail_instance_from_client_response_data(self, **kwargs):
         self.setup_mocks(**kwargs)
-        self.mock_client.get_email.return_value = {'subject': 'Hello'}
+        self.mock_client.get_email.return_value = {
+            'mail_id': '1',
+            'mail_subject': 'Hello',
+            'mail_from': 'user@example.com',
+            'mail_timestamp': '1392501749',
+            'mail_read': '0',
+            'mail_exerpt': 'Hi there....',
+            'mail_body': 'Hi there partner',
+        }
         email = self.session.get_email('123')
-        expect(email).to.equal({'subject': 'Hello'})
+        expect(email).to.have.property('guid').with_value.being.equal('1')
+        expect(email).to.have.property('subject').with_value.being.equal('Hello')
+        expect(email).to.have.property('sender').with_value.being.equal('user@example.com')
+        expect(email).to.have.property('datetime').with_value.being.equal(datetime(2014, 2, 15, 22, 2, 29))
+        expect(email).to.have.property('read').with_value.being.false
+        expect(email).to.have.property('exerpt').with_value.being.equal('Hi there....')
+        expect(email).to.have.property('body').with_value.being.equal('Hi there partner')
 
     def test_get_email_should_call_client(self, **kwargs):
         self.setup_mocks(**kwargs)
@@ -435,11 +462,17 @@ class GetEmailCommandTest(TestCase):
     def setUp(self):
         self.command = GetEmailCommand()
 
-    def test_invoke_should_pretty_format_email_from_session_as_json(self):
-        mock_session = Mock(get_email=lambda _: {'subject': 'Test'})
+    def test_invoke_should_format_mail(self):
+        mail = Mail(
+            subject='Test',
+            sender='user@example.com',
+            datetime=datetime(2014, 2, 15, 22, 2, 29),
+            body='Hello'
+        )
+        mock_session = Mock(get_email=lambda _: mail)
         mock_args = Mock(id=1)
         output = self.command.invoke(mock_session, mock_args)
-        expect(output).to.equal(json.dumps({'subject': 'Test'}, indent=2))
+        expect(output).to.equal('From: user@example.com\nDate: {0}\nSubject: Test\n\nHello\n'.format(mail.datetime))
 
 
 class GuerrillaMailParseArgsTest(TestCase):
