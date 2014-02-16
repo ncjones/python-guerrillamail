@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import argparse
 from datetime import tzinfo, timedelta, datetime
 import json
@@ -145,7 +147,10 @@ class GuerrillaMailClient(object):
         return self._do_request(session_id, f='get_email_list', offset=offset)
 
     def get_email(self, email_id, session_id=None):
-        return self._do_request(session_id, f='fetch_email', email_id=email_id)
+        response_data = self._do_request(session_id, f='fetch_email', email_id=email_id)
+        if not response_data:
+            raise GuerrillaMailException('Not found: ' + str(email_id))
+        return response_data
 
     def set_email_address(self, address_local_part, session_id=None):
         return self._do_request(session_id, f='set_email_user', email_user=address_local_part)
@@ -257,9 +262,13 @@ def main(*args):
     args = parse_args(args)
     settings = load_settings()
     session = GuerrillaMailSession(**settings)
-    output = get_command(args.command).invoke(session, args)
-    if output is not None:
-        print output
+    try:
+        output = get_command(args.command).invoke(session, args)
+    except GuerrillaMailException as e:
+        print(e.message, file=sys.stderr)
+    else:
+        if output is not None:
+            print(output)
     settings['session_id'] = session.session_id
     save_settings(settings)
 

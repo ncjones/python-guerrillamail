@@ -251,6 +251,11 @@ class GuerrillaMailClientTest(TestCase):
         httpretty.register_uri(httpretty.GET, 'http://test-host/ajax.php', status=500)
         expect(self.client.get_email).when.called_with(email_id=123).should.throw(GuerrillaMailException)
 
+    @httpretty.activate
+    def test_get_email_should_raise_exception_when_message_not_found(self):
+        httpretty.register_uri(httpretty.GET, 'http://test-host/ajax.php', status=200, body='false')
+        expect(self.client.get_email).when.called_with(email_id=123).should.throw(GuerrillaMailException)
+
 
 @patch.multiple('guerrillamail', GuerrillaMailClient=DEFAULT)
 class GuerrillaMailSessionTest(TestCase):
@@ -603,3 +608,17 @@ class GuerrillaMailMainTest(TestCase):
         self.mock_command.invoke.side_effect = set_session_id
         main()
         save_settings.assert_called_with({'session_id': 123})
+
+    def test_main_should_capture_guerrillamail_exception(self, **kwargs):
+        self.setup_mocks(**kwargs)
+        def raise_exception(*args):
+            raise GuerrillaMailException()
+        self.mock_command.invoke.side_effect = raise_exception
+        main()
+
+    def test_main_should_not_capture_unexpected_exception(self, **kwargs):
+        self.setup_mocks(**kwargs)
+        def raise_exception(*args):
+            raise Exception()
+        self.mock_command.invoke.side_effect = raise_exception
+        expect(main).when.called.to.throw(Exception)
