@@ -109,7 +109,14 @@ class GuerrillaMailSession(object):
     def set_email_address(self, address_local_part):
         self._delegate_to_client('set_email_address', address_local_part=address_local_part)
 
+    def _ensure_session(self):
+        if self.session_id is None:
+            self.get_email_address()
+        if self.session_id is None:
+            raise GuerrillaMailException('Failed to obtain session id')
+
     def get_email_list(self, offset=0):
+        self._ensure_session()
         response_data = self._delegate_to_client('get_email_list', offset=offset)
         email_list = response_data.get('list')
         return [Mail.from_response(e) for e in email_list] if email_list else []
@@ -143,7 +150,9 @@ class GuerrillaMailClient(object):
     def get_email_address(self, session_id=None):
         return self._do_request(session_id, f='get_email_address')
 
-    def get_email_list(self, session_id=None, offset=0):
+    def get_email_list(self, session_id, offset=0):
+        if session_id is None:
+            raise ValueError('session_id is None')
         return self._do_request(session_id, f='get_email_list', offset=offset)
 
     def get_email(self, email_id, session_id=None):

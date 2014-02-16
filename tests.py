@@ -1,4 +1,4 @@
-from unittest.case import TestCase
+from unittest.case import TestCase, skip
 
 import httpretty
 from mock import patch, DEFAULT, Mock
@@ -172,18 +172,6 @@ class GuerrillaMailClientTest(TestCase):
         response_body = '{"list":[]}'
         httpretty.register_uri(httpretty.GET, 'http://test-host/ajax.php',
                                body=response_body, match_querystring=True)
-        self.client.get_email_list()
-        expect(httpretty.last_request()).to.have.property('querystring').being.equal({
-            'f': ['get_email_list'],
-            'ip': ['127.0.0.1'],
-            'offset': ['0'],
-        })
-
-    @httpretty.activate
-    def test_get_email_list_should_include_session_id_query_param_when_present(self):
-        response_body = '{"list":[]}'
-        httpretty.register_uri(httpretty.GET, 'http://test-host/ajax.php',
-                               body=response_body, match_querystring=True)
         self.client.get_email_list(session_id=1)
         expect(httpretty.last_request()).to.have.property('querystring').being.equal({
             'f': ['get_email_list'],
@@ -192,26 +180,21 @@ class GuerrillaMailClientTest(TestCase):
             'sid_token': ['1'],
         })
 
+    def test_get_email_list_should_not_allow_session_id_to_be_none(self):
+        expect(self.client.get_email_list).when.called_with(session_id=None).to.throw(ValueError)
+
     @httpretty.activate
     def test_get_email_list_should_return_deserialized_json(self):
         response_body = '{"list":[{"subject":"Hello"}]}'
         httpretty.register_uri(httpretty.GET, 'http://test-host/ajax.php',
                                body=response_body, match_querystring=True)
-        email_list = self.client.get_email_list()
+        email_list = self.client.get_email_list(session_id=1)
         expect(email_list).to.equal({'list':[{'subject': 'Hello'}]})
-
-    @httpretty.activate
-    def test_get_email_list_should_return_empty_list_when_response_has_no_list_field(self):
-        response_body = '{}'
-        httpretty.register_uri(httpretty.GET, 'http://test-host/ajax.php',
-                               body=response_body, match_querystring=True)
-        email_list = self.client.get_email_list()
-        expect(email_list).to.be.empty
 
     @httpretty.activate
     def test_get_email_list_should_raise_exception_on_failed_request(self):
         httpretty.register_uri(httpretty.GET, 'http://test-host/ajax.php', status=500)
-        expect(self.client.get_email_list).when.called_with().should.throw(GuerrillaMailException)
+        expect(self.client.get_email_list).when.called_with(session_id=1).should.throw(GuerrillaMailException)
 
     @httpretty.activate
     def test_get_email_should_send_query_params(self):
@@ -333,6 +316,7 @@ class GuerrillaMailSessionTest(TestCase):
     def test_get_email_list_should_extract_response_list(self, **kwargs):
         self.setup_mocks(**kwargs)
         self.mock_client.get_email_list.return_value = {'list': []}
+        self.session.session_id = 1
         email_list = self.session.get_email_list()
         expect(email_list).to.have.length_of(0)
 
@@ -348,6 +332,7 @@ class GuerrillaMailSessionTest(TestCase):
                 'mail_exerpt': 'Hi there....',
             }]
         }
+        self.session.session_id = 1
         email_list = self.session.get_email_list()
         email = email_list[0]
         expect(email_list).to.have.length_of(1)
@@ -361,8 +346,9 @@ class GuerrillaMailSessionTest(TestCase):
     def test_get_email_list_should_call_client(self, **kwargs):
         self.setup_mocks(**kwargs)
         self.mock_client.get_email_list.return_value = {'list': []}
+        self.session.session_id = 1
         self.session.get_email_list()
-        self.mock_client.get_email_list.assert_called_once_with(session_id=None, offset=0)
+        self.mock_client.get_email_list.assert_called_once_with(session_id=1, offset=0)
 
     def test_get_email_list_should_call_client_with_session_id_when_set(self, **kwargs):
         self.setup_mocks(**kwargs)
@@ -374,7 +360,7 @@ class GuerrillaMailSessionTest(TestCase):
     def test_get_email_list_should_update_session_id_when_included_in_response(self, **kwargs):
         self.setup_mocks(**kwargs)
         self.mock_client.get_email_list.return_value = {'list': [], 'sid_token': 1}
-        assert self.session.session_id == None
+        self.session.session_id = 0
         self.session.get_email_list()
         expect(self.session.session_id).to.equal(1)
 
@@ -384,6 +370,29 @@ class GuerrillaMailSessionTest(TestCase):
         self.session.session_id = 1
         self.session.get_email_list()
         expect(self.session.session_id).to.equal(1)
+
+    def test_get_email_list_should_not_invoke_get_address_when_session_id_set(self, **kwargs):
+        self.setup_mocks(**kwargs)
+        self.session.session_id = 1
+        self.mock_client.get_email_list.return_value = {'list': []}
+        self.session.get_email_list()
+        expect(self.mock_client.get_email_address.called).to.equal(False)
+
+    def test_get_email_list_should_first_create_session_when_session_id_not_set(self, **kwargs):
+        self.setup_mocks(**kwargs)
+        self.mock_client.get_email_list.return_value = {'list': []}
+        self.mock_client.get_email_address.return_value = {'sid_token': '1', 'email_addr': ''}
+        assert self.session.session_id == None
+        self.session.get_email_list()
+        expect(self.session.session_id).to.equal('1')
+        self.mock_client.get_email_list.assert_called_once_with(session_id='1', offset=0)
+
+    def test_get_email_list_should_fail_when_session_cannot_be_obtained(self, **kwargs):
+        self.setup_mocks(**kwargs)
+        self.mock_client.get_email_address.return_value = {'email_addr': ''}
+        assert self.session.session_id == None
+        expect(self.session.get_email_list).when.called.to.throw(GuerrillaMailException)
+        expect(self.mock_client.get_email_list.called).to.equal(False)
 
     def test_get_email_should_create_mail_instance_from_client_response_data(self, **kwargs):
         self.setup_mocks(**kwargs)
