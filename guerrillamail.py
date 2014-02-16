@@ -1,12 +1,34 @@
 #!/usr/bin/env python
 
 import argparse
+from datetime import tzinfo, timedelta, datetime
 import json
 from os.path import expanduser
 import sys
 
 import requests
-from datetime import datetime
+
+
+# UTC timezone implementation from
+# http://docs.python.org/2/library/datetime.html#tzinfo-objects
+
+ZERO = timedelta(0)
+
+
+class UTC(tzinfo):
+    """UTC"""
+#
+    def utcoffset(self, dt):
+        return ZERO
+
+    def tzname(self, dt):
+        return "UTC"
+
+    def dst(self, dt):
+        return ZERO
+
+
+utc = UTC()
 
 
 class GuerrillaMailException(Exception):
@@ -36,7 +58,7 @@ class Mail(object):
             'guid': ('mail_id', identity),
             'subject': ('mail_subject', identity),
             'sender': ('mail_from', identity),
-            'datetime': ('mail_timestamp', lambda x: datetime.utcfromtimestamp(int(x))),
+            'datetime': ('mail_timestamp', lambda x: datetime.utcfromtimestamp(int(x)).replace(tzinfo=utc)),
             'read': ('mail_read', int),
             'exerpt': ('mail_exerpt', identity),
             'body': ('mail_body', identity),
@@ -50,6 +72,10 @@ class Mail(object):
         self.read = read
         self.exerpt = exerpt
         self.body = body
+
+    @property
+    def time(self):
+        return self.datetime.time().replace(tzinfo=self.datetime.tzinfo) if self.datetime else None
 
 
 class GuerrillaMailSession(object):
@@ -181,7 +207,9 @@ class ListEmailCommand(Command):
         return output
 
     def format_email_summary(self, email):
-        return u'id: {email.guid}\nfrom: {email.sender}\nsubject: {email.subject}\n'.format(email=email)
+        unread_indicator = '*' if not email.read else ' '
+        email_format = u'({unread_indicator}) {email.guid:<8}  {email.time}  {email.sender}\n{email.subject}\n'
+        return email_format.format(email=email, unread_indicator=unread_indicator)
 
 
 class GetEmailCommand(Command):
@@ -198,7 +226,8 @@ class GetEmailCommand(Command):
         return self.format_email(email)
 
     def format_email(self, email):
-        return u'From: {email.sender}\nDate: {email.datetime}\nSubject: {email.subject}\n\n{email.body}\n'.format(email=email)
+        email_format = u'From: {email.sender}\nDate: {email.datetime}\nSubject: {email.subject}\n\n{email.body}\n'
+        return email_format.format(email=email)
 
 
 COMMAND_TYPES = [GetAddressCommand, SetAddressCommand, ListEmailCommand, GetEmailCommand]

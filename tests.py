@@ -5,8 +5,8 @@ from mock import patch, DEFAULT, Mock
 from sure import expect
 
 from guerrillamail import GuerrillaMailClient, GuerrillaMailException, GuerrillaMailSession, main, GetAddressCommand, \
-    ListEmailCommand, GetEmailCommand, parse_args, get_command, SetAddressCommand, Mail
-from datetime import datetime
+    ListEmailCommand, GetEmailCommand, parse_args, get_command, SetAddressCommand, Mail, utc
+from datetime import datetime, time
 
 
 class MailTest(TestCase):
@@ -48,7 +48,7 @@ class MailTest(TestCase):
 
     def test_from_response_should_map_datetime(self):
         mail = Mail.from_response({'mail_timestamp': '1392459985'})
-        expect(mail.datetime).to.equal(datetime(2014, 2, 15, 10, 26, 25))
+        expect(mail.datetime).to.equal(datetime(2014, 2, 15, 10, 26, 25, tzinfo=utc))
 
     def test_from_response_should_default_datetime_to_none(self):
         mail = Mail.from_response({})
@@ -75,6 +75,18 @@ class MailTest(TestCase):
             "mail_recipient": "john",
         })
         expect(mail).to.not_have.property('recipient')
+
+    def test_time_should_be_derived_from_datetime(self):
+        mail = Mail(datetime=datetime(2014, 2, 16, 19, 34))
+        expect(mail.time).to.equal(time(19, 34))
+
+    def test_time_should_be_use_same_tz_as_datetime(self):
+        mail = Mail(datetime=datetime(2014, 2, 16, 19, 34, tzinfo=utc))
+        expect(mail.time).to.equal(time(19, 34, tzinfo=utc))
+
+    def test_time_should_be_none_when_datetime_is_none(self):
+        mail = Mail(datetime=None)
+        expect(mail.time).to.be.none
 
 
 class GuerrillaMailClientTest(TestCase):
@@ -337,7 +349,7 @@ class GuerrillaMailSessionTest(TestCase):
         expect(email).to.have.property('guid').with_value.being.equal('1')
         expect(email).to.have.property('subject').with_value.being.equal('Hello')
         expect(email).to.have.property('sender').with_value.being.equal('user@example.com')
-        expect(email).to.have.property('datetime').with_value.being.equal(datetime(2014, 2, 15, 22, 2, 29))
+        expect(email).to.have.property('datetime').with_value.being.equal(datetime(2014, 2, 15, 22, 2, 29, tzinfo=utc))
         expect(email).to.have.property('read').with_value.being.false
         expect(email).to.have.property('exerpt').with_value.being.equal('Hi there....')
 
@@ -383,7 +395,7 @@ class GuerrillaMailSessionTest(TestCase):
         expect(email).to.have.property('guid').with_value.being.equal('1')
         expect(email).to.have.property('subject').with_value.being.equal('Hello')
         expect(email).to.have.property('sender').with_value.being.equal('user@example.com')
-        expect(email).to.have.property('datetime').with_value.being.equal(datetime(2014, 2, 15, 22, 2, 29))
+        expect(email).to.have.property('datetime').with_value.being.equal(datetime(2014, 2, 15, 22, 2, 29, tzinfo=utc))
         expect(email).to.have.property('read').with_value.being.false
         expect(email).to.have.property('exerpt').with_value.being.equal('Hi there....')
         expect(email).to.have.property('body').with_value.being.equal('Hi there partner')
@@ -448,14 +460,46 @@ class ListEmailCommandTest(TestCase):
         self.command = ListEmailCommand()
 
     def test_invoke_should_format_mail_summaries(self):
-        mock_session = Mock(get_email_list=lambda: [Mail(subject='Test', sender='user@example.com', guid='1234567')])
+        date = datetime(2014, 2, 16, 12, 34)
+        mail = Mail(subject='Test', sender='user@example.com', guid='1234567', datetime=date)
+        mock_session = Mock(get_email_list=lambda: [mail])
         output = self.command.invoke(mock_session, None)
-        expect(output).to.equal('id: 1234567\nfrom: user@example.com\nsubject: Test\n\n')
+        expect(output).to.equal('(*) 1234567   12:34:00  user@example.com\nTest\n\n')
+
+    def test_invoke_should_format_mail_summaries_without_star_when_read(self):
+        date = datetime(2014, 2, 16, 12, 34)
+        mail = Mail(subject='Test', sender='user@example.com', guid='1234567', datetime=date, read=True)
+        mock_session = Mock(get_email_list=lambda: [mail])
+        output = self.command.invoke(mock_session, None)
+        expect(output).to.equal('( ) 1234567   12:34:00  user@example.com\nTest\n\n')
+
+    def test_invoke_should_format_mail_summaries_with_left_aligned_guid(self):
+        date = datetime(2014, 2, 16, 12, 34)
+        mail = Mail(subject='Test', sender='user@example.com', guid='123', datetime=date)
+        mock_session = Mock(get_email_list=lambda: [mail])
+        output = self.command.invoke(mock_session, None)
+        expect(output).to.equal('(*) 123       12:34:00  user@example.com\nTest\n\n')
+
+    def test_invoke_should_format_mail_summaries_with_min_two_spaces_after_guid(self):
+        date = datetime(2014, 2, 16, 12, 34)
+        mail = Mail(subject='Test', sender='user@example.com', guid='1234567890', datetime=date)
+        mock_session = Mock(get_email_list=lambda: [mail])
+        output = self.command.invoke(mock_session, None)
+        expect(output).to.equal('(*) 1234567890  12:34:00  user@example.com\nTest\n\n')
 
     def test_invoke_should_handle_unicode_chars(self):
-        mock_session = Mock(get_email_list=lambda: [Mail(subject=u'Test\u0131', sender='user@example.com', guid='1234567')])
+        date = datetime(2014, 2, 16, 12, 34)
+        mail = Mail(subject=u'Test\u0131', sender='user@example.com', guid='1234567', datetime=date)
+        mock_session = Mock(get_email_list=lambda: [mail])
         output = self.command.invoke(mock_session, None)
-        expect(output).to.equal(u'id: 1234567\nfrom: user@example.com\nsubject: Test\u0131\n\n')
+        expect(output).to.equal(u'(*) 1234567   12:34:00  user@example.com\nTest\u0131\n\n')
+
+    def test_invoke_should_format_mail_summaries_with_tz_when_present(self):
+        date = datetime(2014, 2, 16, 12, 34, tzinfo=utc)
+        mail = Mail(subject='Test', sender='user@example.com', guid='1234567', datetime=date, read=True)
+        mock_session = Mock(get_email_list=lambda: [mail])
+        output = self.command.invoke(mock_session, None)
+        expect(output).to.equal('( ) 1234567   12:34:00+00:00  user@example.com\nTest\n\n')
 
 
 class GetEmailCommandTest(TestCase):
