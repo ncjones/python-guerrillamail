@@ -224,11 +224,12 @@ class GetInfoCommand(Command):
 
 class SetAddressCommand(Command):
     name = 'setaddr'
-    help = 'Set the current email address'
-    description = 'Set the email address of the current Guerrillamail session'
+    help = 'Set the email address for the current session.'
+    description = '''Set the email address for the current session. This
+        address will be used when listing inbox contents.'''
     params = [{
         'name': 'address',
-        'help': 'an email address local part (excludes domain and @ symbol)'
+        'help': 'an email address "local part". The domain, if provided, will be ignored.'
     }]
 
     def invoke(self, session, args):
@@ -237,7 +238,7 @@ class SetAddressCommand(Command):
     
 class ListEmailCommand(Command):
     name = 'list'
-    help = 'Get the current inbox contents'
+    help = 'Get the current inbox contents.'
     description = 'Get the contents of the inbox associated with the current session'
     
     def invoke(self, session, args):
@@ -256,7 +257,8 @@ class ListEmailCommand(Command):
 class GetEmailCommand(Command):
     name = 'get'
     help = 'Get an email message by id.'
-    description = 'Get an email message by id. The email id need not be associated with the current session.'
+    description = '''Get an email message by id. The requested email does not
+        need to belong to the inbox associated with the current session.'''
     params = [{
         'name': 'id',
         'help': 'an email id'
