@@ -213,13 +213,13 @@ class Command(object):
     params = []
 
 
-class GetAddressCommand(Command):
-    name = 'address'
-    help = 'Get the current email address'
-    description = 'Get the email address of the current Guerrillamail session'
+class GetInfoCommand(Command):
+    name = 'info'
+    help = 'Show information about the current session.'
+    description = 'Show information about the current session.'
     
     def invoke(self, session, args):
-        return session.get_session_state()['email_address']
+        return 'Email: ' + session.get_session_state()['email_address']
 
 
 class SetAddressCommand(Command):
@@ -271,7 +271,7 @@ class GetEmailCommand(Command):
         return email_format.format(email=email)
 
 
-COMMAND_TYPES = [GetAddressCommand, SetAddressCommand, ListEmailCommand, GetEmailCommand]
+COMMAND_TYPES = [GetInfoCommand, SetAddressCommand, ListEmailCommand, GetEmailCommand]
 
 
 def parse_args(args):

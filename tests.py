@@ -6,7 +6,7 @@ import httpretty
 from mock import patch, DEFAULT, Mock
 from sure import expect
 
-from guerrillamail import GuerrillaMailClient, GuerrillaMailException, GuerrillaMailSession, main, GetAddressCommand, \
+from guerrillamail import GuerrillaMailClient, GuerrillaMailException, GuerrillaMailSession, main, GetInfoCommand, \
     ListEmailCommand, GetEmailCommand, parse_args, get_command, SetAddressCommand, Mail, utc
 
 
@@ -536,14 +536,14 @@ class GuerrillaMailSessionTest(TestCase):
         expect(self.session.session_id).to.equal(1)
 
 
-class GetAddressCommandTest(TestCase):
+class GetInfoCommandTest(TestCase):
     def setUp(self):
-        self.command = GetAddressCommand()
+        self.command = GetInfoCommand()
 
     def test_invoke_should_get_email_address_from_session(self):
         mock_session = Mock(get_session_state=lambda: {'email_address': 'test@example.com'})
         output = self.command.invoke(mock_session, None)
-        expect(output).to.equal('test@example.com')
+        expect(output).to.equal('Email: test@example.com')
 
 
 class SetAddressCommandTest(TestCase):
@@ -628,9 +628,9 @@ class GetEmailCommandTest(TestCase):
 
 
 class GuerrillaMailParseArgsTest(TestCase):
-    def test_parse_args_should_extract_address_command(self, **kwargs):
-        args = parse_args(['address'])
-        expect(args.command).to.equal('address')
+    def test_parse_args_should_extract_info_command(self, **kwargs):
+        args = parse_args(['info'])
+        expect(args.command).to.equal('info')
 
     def test_parse_args_should_extract_set_address_command(self, **kwargs):
         args = parse_args(['setaddr', 'john91'])
@@ -655,8 +655,8 @@ class GuerrillaMailParseArgsTest(TestCase):
 
 class GuerrillaMailGetCommandTest(TestCase):
     def test_get_address_command_should_return_get_address_command_instance(self):
-        command = get_command('address')
-        expect(command).to.be.a('guerrillamail.GetAddressCommand')
+        command = get_command('info')
+        expect(command).to.be.a('guerrillamail.GetInfoCommand')
 
     def test_set_address_command_should_return_set_address_command_instance(self):
         command = get_command('setaddr')
