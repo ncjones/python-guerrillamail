@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import argparse
 from datetime import tzinfo, timedelta, datetime
+from time import time
 import json
 from os.path import expanduser
 import sys
@@ -80,6 +81,9 @@ class Mail(object):
         return self.datetime.time().replace(tzinfo=self.datetime.tzinfo) if self.datetime else None
 
 
+SESSION_TIMEOUT_SECONDS = 3600
+
+
 class GuerrillaMailSession(object):
     """
     An abstraction over a GuerrillamailClient which maintains session state.
@@ -101,6 +105,11 @@ class GuerrillaMailSession(object):
         except KeyError:
             pass
 
+    def is_expired(self):
+        current_time = int(time())
+        expiry_time = self.email_timestamp + SESSION_TIMEOUT_SECONDS - 5
+        return current_time >= expiry_time
+
     def _delegate_to_client(self, method_name, *args, **kwargs):
         client_method = getattr(self.client, method_name)
         response_data = client_method(session_id=self.session_id, *args, **kwargs)
@@ -114,14 +123,14 @@ class GuerrillaMailSession(object):
     def set_email_address(self, address_local_part):
         self._delegate_to_client('set_email_address', address_local_part=address_local_part)
 
-    def _ensure_session(self):
-        if self.session_id is None:
+    def _ensure_valid_session(self):
+        if self.session_id is None or self.is_expired():
             self.get_email_address()
         if self.session_id is None:
             raise GuerrillaMailException('Failed to obtain session id')
 
     def get_email_list(self, offset=0):
-        self._ensure_session()
+        self._ensure_valid_session()
         response_data = self._delegate_to_client('get_email_list', offset=offset)
         email_list = response_data.get('list')
         return [Mail.from_response(e) for e in email_list] if email_list else []
