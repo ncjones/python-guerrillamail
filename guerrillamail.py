@@ -121,9 +121,11 @@ class GuerrillaMailSession(object):
         self._update_session_state(response_data)
         return response_data
 
-    def get_email_address(self):
+    def get_session_state(self):
         data = self._delegate_to_client('get_email_address')
-        return data['email_addr']
+        return {
+            'email_address': data['email_addr']
+        }
 
     def set_email_address(self, address_local_part):
         self._delegate_to_client('set_email_address', address_local_part=address_local_part)
@@ -132,7 +134,7 @@ class GuerrillaMailSession(object):
         if self.email_address:
             self.set_email_address(self.email_address)
         else:
-            self.get_email_address()
+            self.get_session_state()
 
     def _ensure_valid_session(self):
         if self.session_id is None or self.is_expired():
@@ -217,7 +219,7 @@ class GetAddressCommand(Command):
     description = 'Get the email address of the current Guerrillamail session'
     
     def invoke(self, session, args):
-        return session.get_email_address()
+        return session.get_session_state()['email_address']
 
 
 class SetAddressCommand(Command):

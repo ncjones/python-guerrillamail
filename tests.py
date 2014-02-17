@@ -252,53 +252,53 @@ class GuerrillaMailSessionTest(TestCase):
         GuerrillaMailClient.return_value = self.mock_client
         self.session = GuerrillaMailSession()
 
-    def test_get_email_address_should_extract_email_address_from_response(self, **kwargs):
+    def test_get_email_state_should_extract_email_address_from_response(self, **kwargs):
         self.setup_mocks(**kwargs)
         self.mock_client.get_email_address.return_value = {'email_addr': 'test@example.com'}
-        email_address = self.session.get_email_address()
-        expect(email_address).to.equal('test@example.com')
+        email_address = self.session.get_session_state()
+        expect(email_address).to.equal({'email_address': 'test@example.com'})
 
-    def test_get_email_address_should_call_client(self, **kwargs):
+    def test_get_email_state_should_call_client(self, **kwargs):
         self.setup_mocks(**kwargs)
         self.mock_client.get_email_address.return_value = {'email_addr': ''}
-        self.session.get_email_address()
+        self.session.get_session_state()
         self.mock_client.get_email_address.assert_called_once_with(session_id=None)
 
-    def test_get_email_address_should_call_client_with_session_id_when_set(self, **kwargs):
+    def test_get_session_state_should_call_client_with_session_id_when_set(self, **kwargs):
         self.setup_mocks(**kwargs)
         self.mock_client.get_email_address.return_value = {'email_addr': ''}
         self.session.session_id = 1
-        self.session.get_email_address()
+        self.session.get_session_state()
         self.mock_client.get_email_address.assert_called_once_with(session_id=1)
 
-    def test_get_email_address_should_update_session_id_when_included_in_response(self, **kwargs):
+    def test_get_session_state_should_update_session_id_when_included_in_response(self, **kwargs):
         self.setup_mocks(**kwargs)
         self.mock_client.get_email_address.return_value = {'email_addr': '', 'sid_token': 1}
         assert self.session.session_id == None
-        self.session.get_email_address()
+        self.session.get_session_state()
         expect(self.session.session_id).to.equal(1)
 
-    def test_get_email_address_should_not_update_session_id_when_not_included_in_response(self, **kwargs):
+    def test_get_session_state_should_not_update_session_id_when_not_included_in_response(self, **kwargs):
         self.setup_mocks(**kwargs)
         self.mock_client.get_email_address.return_value = {'email_addr': ''}
         self.session.session_id = 1
-        self.session.get_email_address()
+        self.session.get_session_state()
         expect(self.session.session_id).to.equal(1)
         
-    def test_get_email_address_should_update_email_timestamp(self, **kwargs):
+    def test_get_session_state_should_update_email_timestamp(self, **kwargs):
         self.setup_mocks(**kwargs)
         self.mock_client.get_email_address.return_value = {'email_addr': '', 'email_timestamp': 1234}
         assert self.session.email_timestamp == 0
-        self.session.get_email_address()
+        self.session.get_session_state()
         expect(self.session.email_timestamp).to.equal(1234)
 
-    def test_get_email_address_should_update_email_address(self, **kwargs):
+    def test_get_session_state_should_update_email_address(self, **kwargs):
         self.setup_mocks(**kwargs)
         self.mock_client.get_email_address.return_value = {
             'email_addr': 'test@users.org', 'email_timestamp': 1234,
         }
         assert self.session.email_timestamp == 0
-        self.session.get_email_address()
+        self.session.get_session_state()
         expect(self.session.email_address).to.equal('test@users.org')
 
     def test_set_email_address_should_return_none(self, **kwargs):
@@ -532,7 +532,7 @@ class GetAddressCommandTest(TestCase):
         self.command = GetAddressCommand()
 
     def test_invoke_should_get_email_address_from_session(self):
-        mock_session = Mock(get_email_address=lambda: 'test@example.com')
+        mock_session = Mock(get_session_state=lambda: {'email_address': 'test@example.com'})
         output = self.command.invoke(mock_session, None)
         expect(output).to.equal('test@example.com')
 
