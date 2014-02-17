@@ -122,9 +122,9 @@ class GuerrillaMailSession(object):
         return response_data
 
     def get_session_state(self):
-        data = self._delegate_to_client('get_email_address')
+        self._ensure_valid_session(fully_populate=True)
         return {
-            'email_address': data['email_addr']
+            'email_address': self.email_address
         }
 
     def set_email_address(self, address_local_part):
@@ -134,10 +134,10 @@ class GuerrillaMailSession(object):
         if self.email_address:
             self.set_email_address(self.email_address)
         else:
-            self.get_session_state()
+            self._delegate_to_client('get_email_address')
 
-    def _ensure_valid_session(self):
-        if self.session_id is None or self.is_expired():
+    def _ensure_valid_session(self, fully_populate=False):
+        if self.session_id is None or self.is_expired() or fully_populate and not self.email_address:
             self._renew_session()
         if self.session_id is None:
             raise GuerrillaMailException('Failed to obtain session id')

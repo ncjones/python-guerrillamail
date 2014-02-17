@@ -254,13 +254,13 @@ class GuerrillaMailSessionTest(TestCase):
 
     def test_get_email_state_should_extract_email_address_from_response(self, **kwargs):
         self.setup_mocks(**kwargs)
-        self.mock_client.get_email_address.return_value = {'email_addr': 'test@example.com'}
+        self.mock_client.get_email_address.return_value = {'email_addr': 'test@example.com', 'sid_token': 1}
         email_address = self.session.get_session_state()
         expect(email_address).to.equal({'email_address': 'test@example.com'})
 
     def test_get_email_state_should_call_client(self, **kwargs):
         self.setup_mocks(**kwargs)
-        self.mock_client.get_email_address.return_value = {'email_addr': ''}
+        self.mock_client.get_email_address.return_value = {'email_addr': '', 'sid_token': 1}
         self.session.get_session_state()
         self.mock_client.get_email_address.assert_called_once_with(session_id=None)
 
@@ -287,7 +287,7 @@ class GuerrillaMailSessionTest(TestCase):
         
     def test_get_session_state_should_update_email_timestamp(self, **kwargs):
         self.setup_mocks(**kwargs)
-        self.mock_client.get_email_address.return_value = {'email_addr': '', 'email_timestamp': 1234}
+        self.mock_client.get_email_address.return_value = {'email_addr': '', 'email_timestamp': 1234, 'sid_token': 1}
         assert self.session.email_timestamp == 0
         self.session.get_session_state()
         expect(self.session.email_timestamp).to.equal(1234)
@@ -295,11 +295,20 @@ class GuerrillaMailSessionTest(TestCase):
     def test_get_session_state_should_update_email_address(self, **kwargs):
         self.setup_mocks(**kwargs)
         self.mock_client.get_email_address.return_value = {
-            'email_addr': 'test@users.org', 'email_timestamp': 1234,
+            'email_addr': 'test@users.org', 'email_timestamp': 1234, 'sid_token': 1,
         }
         assert self.session.email_timestamp == 0
         self.session.get_session_state()
         expect(self.session.email_address).to.equal('test@users.org')
+
+    def test_get_session_state_should_use_cached_data_when_available_and_current(self, **kwargs):
+        self.setup_mocks(**kwargs)
+        self.session.session_id = 1
+        self.session.email_address = 'test@users.org'
+        self.session.email_timestamp = current_timestamp()
+        self.session.get_session_state()
+        expect(self.mock_client.get_email_address.called).to.equal(False)
+        expect(self.mock_client.set_email_address.called).to.equal(False)
 
     def test_set_email_address_should_return_none(self, **kwargs):
         self.setup_mocks(**kwargs)
