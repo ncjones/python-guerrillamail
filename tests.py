@@ -292,6 +292,15 @@ class GuerrillaMailSessionTest(TestCase):
         self.session.get_email_address()
         expect(self.session.email_timestamp).to.equal(1234)
 
+    def test_get_email_address_should_update_email_address(self, **kwargs):
+        self.setup_mocks(**kwargs)
+        self.mock_client.get_email_address.return_value = {
+            'email_addr': 'test@users.org', 'email_timestamp': 1234,
+        }
+        assert self.session.email_timestamp == 0
+        self.session.get_email_address()
+        expect(self.session.email_address).to.equal('test@users.org')
+
     def test_set_email_address_should_return_none(self, **kwargs):
         self.setup_mocks(**kwargs)
         self.mock_client.set_email_address.return_value = {'email_addr': 'test@example.com'}
@@ -331,6 +340,13 @@ class GuerrillaMailSessionTest(TestCase):
         assert self.session.email_timestamp == 0
         self.session.set_email_address('newaddr')
         expect(self.session.email_timestamp).to.equal(1234)
+
+    def test_set_email_address_should_update_email_address(self, **kwargs):
+        self.setup_mocks(**kwargs)
+        self.mock_client.set_email_address.return_value = {'email_addr': 'test@users.org', 'email_timestamp': 1234}
+        assert self.session.email_timestamp == 0
+        self.session.set_email_address('newaddr')
+        expect(self.session.email_address).to.equal('test@users.org')
 
     def test_get_email_list_should_extract_response_list(self, **kwargs):
         self.setup_mocks(**kwargs)
@@ -396,7 +412,7 @@ class GuerrillaMailSessionTest(TestCase):
         self.session.get_email_list()
         expect(self.session.session_id).to.equal(1)
 
-    def test_get_email_list_should_not_invoke_get_address_when_session_id_set(self, **kwargs):
+    def test_get_email_list_should_not_invoke_get_address_when_session_id_set_and_not_expired(self, **kwargs):
         self.setup_mocks(**kwargs)
         self.session.session_id = 1
         self.session.email_timestamp = current_timestamp()
@@ -414,6 +430,17 @@ class GuerrillaMailSessionTest(TestCase):
         expect(self.session.session_id).to.equal('1')
         self.mock_client.get_email_list.assert_called_once_with(session_id='1', offset=0)
 
+    def test_get_email_list_should_first_create_session_and_reuse_address_when_session_id_not_set(self, **kwargs):
+        self.setup_mocks(**kwargs)
+        self.mock_client.get_email_list.return_value = {'list': []}
+        self.mock_client.set_email_address.return_value = {'sid_token': '1', 'email_addr': ''}
+        self.session.email_timestamp = current_timestamp()
+        self.session.email_address = 'test@users.org'
+        assert self.session.session_id == None
+        self.session.get_email_list()
+        expect(self.session.session_id).to.equal('1')
+        self.mock_client.get_email_list.assert_called_once_with(session_id='1', offset=0)
+
     def test_get_email_list_should_fail_when_session_cannot_be_obtained(self, **kwargs):
         self.setup_mocks(**kwargs)
         self.mock_client.get_email_address.return_value = {'email_addr': ''}
@@ -426,6 +453,18 @@ class GuerrillaMailSessionTest(TestCase):
         self.mock_client.get_email_list.return_value = {'list': []}
         self.mock_client.get_email_address.return_value = {'email_addr': '', 'sid_token': '2', 'email_timestamp': 1234}
         self.session.session_id = 1
+        self.session.email_timestamp = current_timestamp() - 3600
+        self.session.get_email_list()
+        expect(self.session.session_id).to.equal('2')
+        expect(self.session.email_timestamp).to.equal(1234)
+        self.mock_client.get_email_list.assert_called_once_with(session_id='2', offset=0)
+
+    def test_get_email_list_should_refresh_session_and_reuse_address_when_email_expired(self, **kwargs):
+        self.setup_mocks(**kwargs)
+        self.mock_client.get_email_list.return_value = {'list': []}
+        self.mock_client.set_email_address.return_value = {'email_addr': '', 'sid_token': '2', 'email_timestamp': 1234}
+        self.session.session_id = 1
+        self.session.email_address = 'user@test.com'
         self.session.email_timestamp = current_timestamp() - 3600
         self.session.get_email_list()
         expect(self.session.session_id).to.equal('2')
@@ -661,9 +700,11 @@ class GuerrillaMailMainTest(TestCase):
         def set_session_state(*args):
             self.mock_session.session_id = 123
             self.mock_session.email_timestamp = 4321
+            self.mock_session.email_address = 'test@users.com'
         self.mock_command.invoke.side_effect = set_session_state
         main()
-        save_settings.assert_called_with({'session_id': 123, 'email_timestamp': 4321})
+        expected_settings = {'session_id': 123, 'email_timestamp': 4321, 'email_address': 'test@users.com'}
+        save_settings.assert_called_with(expected_settings)
 
     def test_main_should_capture_guerrillamail_exception(self, **kwargs):
         self.setup_mocks(**kwargs)

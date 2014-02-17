@@ -90,14 +90,19 @@ class GuerrillaMailSession(object):
 
     This class is not thread safe.
     """
-    def __init__(self, session_id=None, email_timestamp=0, **kwargs):
+    def __init__(self, session_id=None, email_address=None, email_timestamp=0, **kwargs):
         self.client = GuerrillaMailClient(**kwargs)
         self.session_id = session_id
         self.email_timestamp = email_timestamp
+        self.email_address = email_address
 
     def _update_session_state(self, response_data):
         try:
             self.session_id = response_data['sid_token']
+        except KeyError:
+            pass
+        try:
+            self.email_address = response_data['email_addr']
         except KeyError:
             pass
         try:
@@ -123,9 +128,15 @@ class GuerrillaMailSession(object):
     def set_email_address(self, address_local_part):
         self._delegate_to_client('set_email_address', address_local_part=address_local_part)
 
+    def _renew_session(self):
+        if self.email_address:
+            self.set_email_address(self.email_address)
+        else:
+            self.get_email_address()
+
     def _ensure_valid_session(self):
         if self.session_id is None or self.is_expired():
-            self.get_email_address()
+            self._renew_session()
         if self.session_id is None:
             raise GuerrillaMailException('Failed to obtain session id')
 
@@ -281,6 +292,12 @@ def get_command(command_name):
         raise ValueError('Invalid command: ' + command_name)
 
 
+def update_settings(settings, session):
+    settings['session_id'] = session.session_id
+    settings['email_timestamp'] = session.email_timestamp
+    settings['email_address'] = session.email_address
+
+
 def main(*args):
     args = parse_args(args)
     settings = load_settings()
@@ -292,8 +309,7 @@ def main(*args):
     else:
         if output is not None:
             print(output)
-    settings['session_id'] = session.session_id
-    settings['email_timestamp'] = session.email_timestamp
+    update_settings(settings, session)
     save_settings(settings)
 
 
