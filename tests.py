@@ -1,6 +1,9 @@
+import contextlib
 from datetime import datetime, time
-from unittest.case import TestCase
+import os
+import sys
 from time import time as timetime
+from unittest.case import TestCase
 
 import httpretty
 from mock import patch, DEFAULT, Mock
@@ -8,6 +11,28 @@ from sure import expect
 
 from guerrillamail import GuerrillaMailClient, GuerrillaMailException, GuerrillaMailSession, main, GetInfoCommand, \
     ListEmailCommand, GetEmailCommand, parse_args, get_command, SetAddressCommand, Mail, utc
+
+
+@contextlib.contextmanager
+def redirect_file(src_file, dest_file_path):
+    """
+    A context manager to temporarily redirect open files, eg:
+
+    with redirect_file(sys.stderr, os.devnull):
+        fn_that_prints_unwantedly_to_stderr()
+
+    https://stackoverflow.com/questions/977840/redirecting-fortran-called-via-f2py-output-in-python/17753573#17753573
+    """
+    try:
+        src_file_copy = os.dup(src_file.fileno())
+        dest_file = open(dest_file_path, 'w')
+        os.dup2(dest_file.fileno(), src_file.fileno())
+        yield
+    finally:
+        if src_file_copy is not None:
+            os.dup2(src_file_copy, src_file.fileno())
+        if dest_file is not None:
+            dest_file.close()
 
 
 class MailTest(TestCase):
@@ -647,10 +672,12 @@ class GuerrillaMailParseArgsTest(TestCase):
         expect(args.id).to.equal('123')
 
     def test_parse_args_should_reject_unknown_command(self, **kwargs):
-        self.assertRaises(SystemExit, parse_args, ['cheese'])
+        with redirect_file(sys.stderr, os.devnull):
+            self.assertRaises(SystemExit, parse_args, ['cheese'])
 
     def test_parse_args_should_reject_get_command_with_id_missing(self, **kwargs):
-        self.assertRaises(SystemExit, parse_args, ['get'])
+        with redirect_file(sys.stderr, os.devnull):
+            self.assertRaises(SystemExit, parse_args, ['get'])
 
 
 class GuerrillaMailGetCommandTest(TestCase):
