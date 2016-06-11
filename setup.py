@@ -26,4 +26,9 @@ setup(
         'Programming Language :: Python',
         'Programming Language :: Python :: 2.7'
     ],
+    entry_points={
+        'console_scripts': [
+            'guerrillamail=guerrillamail:main',
+        ],
+    }
 )

@@ -320,7 +320,7 @@ def update_settings(settings, session):
     settings['email_address'] = session.email_address
 
 
-def main(*args):
+def cli(*args):
     args = parse_args(args)
     settings = load_settings()
     session = GuerrillaMailSession(**settings)
@@ -335,5 +335,9 @@ def main(*args):
     save_settings(settings)
 
 
+def main():
+    cli(*sys.argv[1:])
+
+
 if __name__ == '__main__':
-    main(*sys.argv[1:])
+    main()

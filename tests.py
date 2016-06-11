@@ -9,7 +9,7 @@ import httpretty
 from mock import patch, DEFAULT, Mock
 from sure import expect
 
-from guerrillamail import GuerrillaMailClient, GuerrillaMailException, GuerrillaMailSession, main, GetInfoCommand, \
+from guerrillamail import GuerrillaMailClient, GuerrillaMailException, GuerrillaMailSession, cli, GetInfoCommand, \
     ListEmailCommand, GetEmailCommand, parse_args, get_command, SetAddressCommand, Mail, utc
 
 
@@ -708,7 +708,7 @@ class GuerrillaMailGetCommandTest(TestCase):
 
 @patch.multiple('guerrillamail', load_settings=DEFAULT, save_settings=DEFAULT, GuerrillaMailSession=DEFAULT,
                 parse_args=DEFAULT, get_command=DEFAULT)
-class GuerrillaMailMainTest(TestCase):
+class GuerrillaMailCliTest(TestCase):
     def setup_mocks(self, GuerrillaMailSession, load_settings, parse_args, get_command, **kwargs):
         load_settings.return_value = {}
         self.mock_session = Mock()
@@ -718,24 +718,24 @@ class GuerrillaMailMainTest(TestCase):
         parse_args.return_value = self.mock_args
         get_command.return_value = self.mock_command
 
-    def test_main_should_create_session_using_settings(self, GuerrillaMailSession, load_settings, **kwargs):
+    def test_cli_should_create_session_using_settings(self, GuerrillaMailSession, load_settings, **kwargs):
         self.setup_mocks(GuerrillaMailSession=GuerrillaMailSession, load_settings=load_settings, **kwargs)
         load_settings.return_value = {'arg1': 1, 'arg2': 'cheese'}
-        main()
+        cli()
         GuerrillaMailSession.assert_called_with(arg1=1, arg2='cheese')
 
-    def test_main_should_get_command_by_command_name_arg(self, get_command, **kwargs):
+    def test_cli_should_get_command_by_command_name_arg(self, get_command, **kwargs):
         self.setup_mocks(get_command=get_command, **kwargs)
         self.mock_args.command = 'cheese'
-        main()
+        cli()
         get_command.assert_called_with('cheese')
 
-    def test_main_should_invoke_command(self, **kwargs):
+    def test_cli_should_invoke_command(self, **kwargs):
         self.setup_mocks(**kwargs)
-        main()
+        cli()
         self.mock_command.invoke.assert_called_once_with(self.mock_session, self.mock_args)
 
-    def test_main_should_save_settings_with_updated_session_id(self, save_settings, **kwargs):
+    def test_cli_should_save_settings_with_updated_session_id(self, save_settings, **kwargs):
         self.setup_mocks(**kwargs)
         self.mock_args.command = 'cheese'
         def set_session_state(*args):
@@ -743,20 +743,20 @@ class GuerrillaMailMainTest(TestCase):
             self.mock_session.email_timestamp = 4321
             self.mock_session.email_address = 'test@users.com'
         self.mock_command.invoke.side_effect = set_session_state
-        main()
+        cli()
         expected_settings = {'session_id': 123, 'email_timestamp': 4321, 'email_address': 'test@users.com'}
         save_settings.assert_called_with(expected_settings)
 
-    def test_main_should_capture_guerrillamail_exception(self, **kwargs):
+    def test_cli_should_capture_guerrillamail_exception(self, **kwargs):
         self.setup_mocks(**kwargs)
         def raise_exception(*args):
             raise GuerrillaMailException()
         self.mock_command.invoke.side_effect = raise_exception
-        main()
+        cli()
 
-    def test_main_should_not_capture_unexpected_exception(self, **kwargs):
+    def test_cli_should_not_capture_unexpected_exception(self, **kwargs):
         self.setup_mocks(**kwargs)
         def raise_exception(*args):
             raise Exception()
         self.mock_command.invoke.side_effect = raise_exception
-        expect(main).when.called.to.throw(Exception)
+        expect(cli).when.called.to.throw(Exception)
