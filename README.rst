@@ -9,8 +9,19 @@ interacting with a `Guerrillamail`_ temporary email server.
     :alt: Build Status
 
 
-Usage (Python)
---------------
+Installation
+------------
+
+.. code-block:: sh
+
+    pip install python-guerrillamail
+
+
+Example Usage
+-------------
+
+Create session using auto-assigned email address, print email address and print
+id of first message in inbox:
 
 .. code-block:: python
 
@@ -20,20 +31,43 @@ Usage (Python)
     print session.get_email_list()[0].guid
 
 
-Usage (CLI)
------------
+Example CLI Usage
+-----------------
+
+Set email address:
 
 .. code-block::
 
-    $ python guerrillamail.py setaddr john.doe
-    $ python guerrillamail.py info
+    $ guerrillamail setaddr john.doe
+    $ guerrillamail info
     Email: john.doe@guerrillamailblock.com
-    $ python guerrillamail.py list
-    (*) 48859781  09:25:01+00:00  admin@flirt.com
-    john3, View all singles who decided to contact you!
 
-    (*) 1         00:00:00+00:00  no-reply@guerrillamail.com
+
+List inbox contents:
+
+.. code-block::
+
+    $ guerrillamail list
+    (*) 48859781  23:45:27+00:00  spam@example.com
+    Example messsage 2
+
+    (*) 48859574  09:25:01+00:00  spam@example.com
+    Example message
+
+    ( ) 1         00:00:00+00:00  no-reply@guerrillamail.com
     Welcome to Guerrilla Mail
+
+
+Read email message:
+
+.. code-block::
+
+    $ guerrillamail get 48859781
+    From: spam@example.com
+    Date: 2016-06-11 23:45:27+00:00
+    Subject: Example message 2
+
+    Example Guerrillamail message body.
 
 
 Using Alternative Guerrillamail Server
