@@ -1,1 +1,5 @@
 requests==2.10.0
+httpretty==0.8.14
+mock==1.0.1
+sure==1.2.3
+pytest==2.9.2
