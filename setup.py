@@ -1,9 +1,15 @@
 from setuptools import setup
+from codecs import open
+
+
+with open('README.rst', 'r', 'utf-8') as f:
+    readme = f.read()
 
 setup(
     name='python-guerrillamail',
     version='0.2.0',
     description='Client for the Guerrillamail temporary email server',
+    long_description=readme,
     keywords='guerrillamail email client cli',
     author='Nathan Jones',
     url='https://github.com/ncjones/python-guerrillamail',
