@@ -80,12 +80,17 @@ class MailTest(TestCase):
         mail = Mail.from_response({})
         expect(mail.datetime).to.be.none
 
-    def test_from_response_should_map_exeprt(self):
-        mail = Mail.from_response({'mail_exerpt': 'A brief message....'})
-        expect(mail.exerpt).to.equal('A brief message....')
+    def test_from_response_should_map_excerpt(self):
+        mail = Mail.from_response({'mail_excerpt': 'A brief message....'})
+        expect(mail.excerpt).to.equal('A brief message....')
 
-    def test_from_response_should_default_exerpt_to_none(self):
+    def test_from_response_should_default_excerpt_to_none(self):
         mail = Mail.from_response({})
+        expect(mail.excerpt).to.be.none
+
+    def test_from_response_should_not_map_typo_exerpt_property(self):
+        mail = Mail.from_response({'mail_exerpt': 'A brief message....'})
+        mail = Mail.from_response({'mail_excerpt': 'A brief message....'})
         expect(mail.exerpt).to.be.none
 
     def test_from_response_should_map_body(self):
@@ -309,7 +314,7 @@ class GuerrillaMailSessionTest(TestCase):
         self.session.session_id = 1
         self.session.get_session_state()
         expect(self.session.session_id).to.equal(1)
-        
+
     def test_get_session_state_should_update_email_timestamp(self, **kwargs):
         self.setup_mocks(**kwargs)
         self.mock_client.get_email_address.return_value = {'email_addr': '', 'email_timestamp': 1234, 'sid_token': 1}
@@ -399,7 +404,7 @@ class GuerrillaMailSessionTest(TestCase):
                 'mail_from': 'user@example.com',
                 'mail_timestamp': '1392501749',
                 'mail_read': '0',
-                'mail_exerpt': 'Hi there....',
+                'mail_excerpt': 'Hi there....',
             }]
         }
         self.session.session_id = 1
@@ -412,7 +417,7 @@ class GuerrillaMailSessionTest(TestCase):
         expect(email).to.have.property('sender').with_value.being.equal('user@example.com')
         expect(email).to.have.property('datetime').with_value.being.equal(datetime(2014, 2, 15, 22, 2, 29, tzinfo=utc))
         expect(email).to.have.property('read').with_value.being.false
-        expect(email).to.have.property('exerpt').with_value.being.equal('Hi there....')
+        expect(email).to.have.property('excerpt').with_value.being.equal('Hi there....')
 
     def test_get_email_list_should_call_client(self, **kwargs):
         self.setup_mocks(**kwargs)
@@ -521,7 +526,7 @@ class GuerrillaMailSessionTest(TestCase):
             'mail_from': 'user@example.com',
             'mail_timestamp': '1392501749',
             'mail_read': '0',
-            'mail_exerpt': 'Hi there....',
+            'mail_excerpt': 'Hi there....',
             'mail_body': 'Hi there partner',
         }
         email = self.session.get_email('123')
@@ -530,7 +535,7 @@ class GuerrillaMailSessionTest(TestCase):
         expect(email).to.have.property('sender').with_value.being.equal('user@example.com')
         expect(email).to.have.property('datetime').with_value.being.equal(datetime(2014, 2, 15, 22, 2, 29, tzinfo=utc))
         expect(email).to.have.property('read').with_value.being.false
-        expect(email).to.have.property('exerpt').with_value.being.equal('Hi there....')
+        expect(email).to.have.property('excerpt').with_value.being.equal('Hi there....')
         expect(email).to.have.property('body').with_value.being.equal('Hi there partner')
 
     def test_get_email_should_call_client(self, **kwargs):

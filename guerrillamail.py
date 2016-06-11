@@ -78,17 +78,20 @@ class Mail(object):
             'sender': ('mail_from', identity),
             'datetime': ('mail_timestamp', lambda x: datetime.utcfromtimestamp(int(x)).replace(tzinfo=utc)),
             'read': ('mail_read', int),
-            'exerpt': ('mail_exerpt', identity),
+            'excerpt': ('mail_excerpt', identity),
             'body': ('mail_body', identity),
         }))
 
-    def __init__(self, guid=None, subject=None, sender=None, datetime=None, read=False, exerpt=None, body=None):
+    def __init__(self, guid=None, subject=None, sender=None, datetime=None,
+        read=False, exerpt=None, excerpt=None, body=None):
         self.guid = guid
         self.subject = subject
         self.sender = sender
         self.datetime = datetime
         self.read = read
-        self.exerpt = exerpt
+        # legacy broken "exerpt" property maintained for backwards compatibility
+        self.exerpt = None
+        self.excerpt = excerpt
         self.body = body
 
     @property
@@ -232,7 +235,7 @@ class GetInfoCommand(Command):
     name = 'info'
     help = 'Show information about the current session.'
     description = 'Show information about the current session.'
-    
+
     def invoke(self, session, args):
         return 'Email: ' + session.get_session_state()['email_address']
 
@@ -249,13 +252,13 @@ class SetAddressCommand(Command):
 
     def invoke(self, session, args):
         session.set_email_address(args.address)
-    
-    
+
+
 class ListEmailCommand(Command):
     name = 'list'
     help = 'Get the current inbox contents.'
     description = 'Get the contents of the inbox associated with the current session'
-    
+
     def invoke(self, session, args):
         email_list = session.get_email_list()
         output = ''
@@ -278,7 +281,7 @@ class GetEmailCommand(Command):
         'name': 'id',
         'help': 'an email id'
     }]
-    
+
     def invoke(self, session, args):
         email = session.get_email(args.id)
         return self.format_email(email)

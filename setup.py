@@ -7,7 +7,7 @@ except ImportError:
 
 setup(
     name='python-guerrillamail',
-    version='0.1.1',
+    version='0.1.2',
     description='Client for the Guerrillamail temporary email server',
     author='Nathan Jones',
     url='https://github.com/ncjones/python-guerrillamail',

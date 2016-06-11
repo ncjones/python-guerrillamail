@@ -4,4 +4,6 @@
 .pydevproject
 *~
 dist
-
+.cache
+*.swp
+tags
