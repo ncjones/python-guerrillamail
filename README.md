@@ -5,7 +5,7 @@ Python Guerrillamail is a Python client API and command line interface for
 interacting with a [Guerrillamail](https://www.guerrillamail.com/) temporary
 email server.
 
-Python Guerrilla Mail is free software, licensed under the GPLv3.
+[![Build Status][build-status-img]][build-status-link]
 
 
 Usage (Python)
@@ -50,3 +50,13 @@ file, for example:
     "base_url": "https://api.guerrillamail.com"
 }
 ```
+
+
+License
+-------
+
+Python Guerrilla Mail is free software, licensed under the GPLv3.
+
+
+[build-status-img]: https://travis-ci.org/ncjones/python-guerrillamail.svg?branch=master
+[build-status-link]: https://travis-ci.org/ncjones/python-guerrillamail
