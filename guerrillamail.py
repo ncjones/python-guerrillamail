@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-#  Copyright Nathan Jones 2014
+#  Copyright Nathan Jones 2014, 2016
 #
 #  This program is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from __future__ import print_function
+from __future__ import unicode_literals
 
 import argparse
 from datetime import tzinfo, timedelta, datetime
@@ -50,13 +51,13 @@ utc = UTC()
 
 
 class GuerrillaMailException(Exception):
-    def __init__(self, *args, **kwargs):
-        super(GuerrillaMailException, self).__init__(*args, **kwargs)
+    def __init__(self, message):
+        self.message = message
 
 
 def _transform_dict(original, key_map):
     result = {}
-    for (new_key, (old_key, transform_fn)) in key_map.items():
+    for (new_key, (old_key, transform_fn)) in list(key_map.items()):
         try:
             result[new_key] = transform_fn(original[old_key])
         except KeyError:
@@ -188,7 +189,8 @@ class GuerrillaMailClient(object):
         try:
             response.raise_for_status()
         except requests.HTTPError as e:
-            raise GuerrillaMailException(e)
+            raise GuerrillaMailException(('Request failed: {e.request.url} ' +
+                    '{e.response.status_code} {e.response.reason}').format(e=e))
         data = json.loads(response.text)
         return data
 
@@ -268,7 +270,7 @@ class ListEmailCommand(Command):
 
     def format_email_summary(self, email):
         unread_indicator = '*' if not email.read else ' '
-        email_format = u'({unread_indicator}) {email.guid:<8}  {email.time}  {email.sender}\n{email.subject}\n'
+        email_format = '({unread_indicator}) {email.guid:<8}  {email.time}  {email.sender}\n{email.subject}\n'
         return email_format.format(email=email, unread_indicator=unread_indicator)
 
 
@@ -287,7 +289,7 @@ class GetEmailCommand(Command):
         return self.format_email(email)
 
     def format_email(self, email):
-        email_format = u'From: {email.sender}\nDate: {email.datetime}\nSubject: {email.subject}\n\n{email.body}\n'
+        email_format = 'From: {email.sender}\nDate: {email.datetime}\nSubject: {email.subject}\n\n{email.body}\n'
         return email_format.format(email=email)
 
 
@@ -299,6 +301,7 @@ def parse_args(args):
         All commands operate on the current Guerrillamail session which is stored in {0}. If a session does not exist
         or has timed out a new one will be created.'''.format(SETTINGS_FILE))
     subparsers = parser.add_subparsers(dest='command', metavar='<command>')
+    subparsers.required = True
     for Command in COMMAND_TYPES:
         command_parser = subparsers.add_parser(Command.name, help=Command.help, description=Command.description)
         for param in Command.params:
