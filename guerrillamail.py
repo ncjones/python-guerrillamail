@@ -22,7 +22,7 @@ import argparse
 from datetime import tzinfo, timedelta, datetime
 from time import time
 import json
-from os.path import expanduser
+from os.path import expanduser, isfile
 import sys
 
 import requests
@@ -292,8 +292,46 @@ class GetEmailCommand(Command):
         email_format = 'From: {email.sender}\nDate: {email.datetime}\nSubject: {email.subject}\n\n{email.body}\n'
         return email_format.format(email=email)
 
+class GetAllEmailCommand(Command):
+    name = 'getall'
+    help = 'Get and save all emails from the current inbox.'
+    description = 'Get all emails from the inbox and save them into files.'
+    params = [{
+        'name': 'dir',
+        'help': 'output directory for emails'
+    }]
 
-COMMAND_TYPES = [GetInfoCommand, SetAddressCommand, ListEmailCommand, GetEmailCommand]
+    def invoke(self, session, args):
+        email_list = session.get_email_list()
+        output = ''
+        for email in email_list:
+            dumpfile = args.dir + '/' + email.guid
+            if isfile(dumpfile):
+                continue
+
+            output += self.format_email_summary(email)
+            self.save_email(session, email.guid, dumpfile)
+
+        output = None if output == '' else output.strip()
+        return output
+
+    def save_email(self, session, guid, dumpfile):
+        f = open(dumpfile, 'w')
+        email = session.get_email(guid)
+        f.write(self.format_email_body(email))
+        f.close()
+
+    def format_email_summary(self, email):
+        unread_indicator = '*' if not email.read else ' '
+        email_format = u'({unread_indicator}) {email.guid:<8}  {email.time}  {email.sender} {email.subject}\n'
+        return email_format.format(email=email, unread_indicator=unread_indicator)
+
+    def format_email_body(self, email):
+        email_format = u'From: {email.sender}\nDate: {email.datetime}\nSubject: {email.subject}\n\n{email.body}\n'
+        return email_format.format(email=email)
+
+
+COMMAND_TYPES = [GetInfoCommand, SetAddressCommand, ListEmailCommand, GetEmailCommand, GetAllEmailCommand]
 
 
 def parse_args(args):
