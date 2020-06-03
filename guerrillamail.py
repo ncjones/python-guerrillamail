@@ -129,6 +129,11 @@ class GuerrillaMailSession(object):
         except KeyError:
             pass
 
+    def _scrub_state(self):
+        self.session_id = None 
+        self.email_address = None 
+        self.email_timestamp = None 
+
     def is_expired(self):
         current_time = int(time())
         expiry_time = self.email_timestamp + SESSION_TIMEOUT_SECONDS - 5
@@ -137,7 +142,13 @@ class GuerrillaMailSession(object):
     def _delegate_to_client(self, method_name, *args, **kwargs):
         client_method = getattr(self.client, method_name)
         response_data = client_method(session_id=self.session_id, *args, **kwargs)
-        self._update_session_state(response_data)
+        print("delete to client " + method_name)
+        if method_name == 'forget_me': 
+            self._scrub_state()
+        elif method_name == 'del_email': 
+            pass  # do nothing 
+        else:
+            self._update_session_state(response_data)
         return response_data
 
     def get_session_state(self):
@@ -168,7 +179,15 @@ class GuerrillaMailSession(object):
         return [Mail.from_response(e) for e in email_list] if email_list else []
 
     def get_email(self, email_id):
+        self._ensure_valid_session()
         return Mail.from_response(self._delegate_to_client('get_email', email_id=email_id))
+
+    def delete_email(self, email_idx):
+        self._ensure_valid_session()
+        self._delegate_to_client('del_email', email_idx) 
+
+    def forget_me(self):
+        self._delegate_to_client('forget_me', self.email_address) 
 
 
 class GuerrillaMailClient(object):
@@ -186,12 +205,16 @@ class GuerrillaMailClient(object):
         if session_id is not None:
             kwargs['sid_token'] = session_id
         response = requests.get(url, params=kwargs)
+        print("response text " + response.text) 
         try:
             response.raise_for_status()
         except requests.HTTPError as e:
             raise GuerrillaMailException(('Request failed: {e.request.url} ' +
                     '{e.response.status_code} {e.response.reason}').format(e=e))
-        data = json.loads(response.text)
+        if len(response.text) > 0:
+            data = json.loads(response.text)
+        else: 
+            data = None 
         return data
 
     def get_email_address(self, session_id=None):
@@ -204,12 +227,19 @@ class GuerrillaMailClient(object):
 
     def get_email(self, email_id, session_id=None):
         response_data = self._do_request(session_id, f='fetch_email', email_id=email_id)
+        print("response data " + response_data)
         if not response_data:
             raise GuerrillaMailException('Not found: ' + str(email_id))
         return response_data
 
     def set_email_address(self, address_local_part, session_id=None):
         return self._do_request(session_id, f='set_email_user', email_user=address_local_part)
+
+    def del_email(self, email_idx, session_id=None):
+        return self._do_request(session_id, f='del_email', email_ids=email_idx) 
+
+    def forget_me(self, email_address, session_id=None):
+        return self._do_request(session_id, f='forget_me', email_addr=email_address)
 
 
 SETTINGS_FILE = '~/.guerrillamail'
