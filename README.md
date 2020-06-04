@@ -2,19 +2,13 @@ Python Guerrillamail
 ====================
 
 Python Guerrillamail is a Python client API and command line interface for
-interacting with a `Guerrillamail`_ temporary email server.
+interacting with a `Guerrillamail` temporary email server.
 
-.. image:: https://travis-ci.org/ncjones/python-guerrillamail.svg?branch=master
-    :target: https://travis-ci.org/ncjones/python-guerrillamail
-    :alt: Build Status
-
+This package was forked from `ncjones/python-guerrillamail` and builds by adding functionality for forgetting an address from the session as well as an additional client function for deleted individual emails via their `guid`. 
 
 Installation
 ------------
-
-.. code-block:: sh
-
-    pip install python-guerrillamail
+     pip install https://github.com/samjtozer/python-guerrillamail.git
 
 
 Example Usage
@@ -23,20 +17,21 @@ Example Usage
 Create session using auto-assigned email address, print email address and print
 id of first message in inbox:
 
-.. code-block:: python
-
     from guerrillamail import GuerrillaMailSession
     session = GuerrillaMailSession()
     print session.get_session_state()['email_address']
     print session.get_email_list()[0].guid
 
 
+You can now delete an email by:
+
+    session.delete_email(session.get_email_list()[0].guid)
+
 Example CLI Usage
 -----------------
 
 Set email address:
 
-.. code-block::
 
     $ guerrillamail setaddr john.doe
     $ guerrillamail info
@@ -44,8 +39,6 @@ Set email address:
 
 
 List inbox contents:
-
-.. code-block::
 
     $ guerrillamail list
     (*) 48859781  23:45:27+00:00  spam@example.com
@@ -59,8 +52,6 @@ List inbox contents:
 
 
 Read email message:
-
-.. code-block::
 
     $ guerrillamail get 48859781
     From: spam@example.com
@@ -79,8 +70,6 @@ property when constructing a GuerrillaMailSession instance. When using the CLI
 the ``base_url`` property can be defined in the ``~/.guerrillamail`` JSON
 config file, for example:
 
-.. code-block:: json
-
     {
         "base_url": "https://api.guerrillamail.com"
     }
@@ -92,4 +81,4 @@ License
 Python Guerrilla Mail is free software, licensed under the GPLv3.
 
 
-.. _Guerrillamail: https://www.guerrillamail.com/
+Guerrillamail: https://www.guerrillamail.com/
