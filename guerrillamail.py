@@ -129,6 +129,11 @@ class GuerrillaMailSession(object):
         except KeyError:
             pass
 
+    def _scrub_state(self):
+        self.session_id = None 
+        self.email_address = None 
+        self.email_timestamp = None 
+
     def is_expired(self):
         current_time = int(time())
         expiry_time = self.email_timestamp + SESSION_TIMEOUT_SECONDS - 5
@@ -137,7 +142,13 @@ class GuerrillaMailSession(object):
     def _delegate_to_client(self, method_name, *args, **kwargs):
         client_method = getattr(self.client, method_name)
         response_data = client_method(session_id=self.session_id, *args, **kwargs)
-        self._update_session_state(response_data)
+        print("delete to client " + method_name)
+        if method_name == 'forget_me': 
+            self._scrub_state()
+        elif method_name == 'del_email': 
+            pass  # do nothing 
+        else:
+            self._update_session_state(response_data)
         return response_data
 
     def get_session_state(self):
@@ -168,7 +179,15 @@ class GuerrillaMailSession(object):
         return [Mail.from_response(e) for e in email_list] if email_list else []
 
     def get_email(self, email_id):
+        self._ensure_valid_session()
         return Mail.from_response(self._delegate_to_client('get_email', email_id=email_id))
+
+    def delete_email(self, email_idx):
+        self._ensure_valid_session()
+        self._delegate_to_client('del_email', email_idx) 
+
+    def forget_me(self):
+        self._delegate_to_client('forget_me', self.email_address) 
 
 
 class GuerrillaMailClient(object):
@@ -180,36 +199,55 @@ class GuerrillaMailClient(object):
         self.base_url = base_url
         self.client_ip = client_ip
 
-    def _do_request(self, session_id, **kwargs):
+    def _do_request(self, session_id, parameters):
         url = self.base_url + '/ajax.php'
-        kwargs['ip'] = self.client_ip
+        parameters['ip'] = self.client_ip
         if session_id is not None:
-            kwargs['sid_token'] = session_id
-        response = requests.get(url, params=kwargs)
+            parameters['sid_token'] = session_id
+        
+        # Mitigate funky url encoding 
+        parameters_str = "&".join("%s=%s" % (k,v) for k,v in parameters.items())
+        response = requests.get(url, params=parameters_str)
+        print(response.url) 
         try:
             response.raise_for_status()
         except requests.HTTPError as e:
             raise GuerrillaMailException(('Request failed: {e.request.url} ' +
                     '{e.response.status_code} {e.response.reason}').format(e=e))
-        data = json.loads(response.text)
+        if len(response.text) > 0:
+            data = json.loads(response.text)
+        else: 
+            data = None 
         return data
 
     def get_email_address(self, session_id=None):
-        return self._do_request(session_id, f='get_email_address')
+        parameters = { 'f': 'get_email_address'} 
+        return self._do_request(session_id, parameters)
 
     def get_email_list(self, session_id, offset=0):
         if session_id is None:
             raise ValueError('session_id is None')
-        return self._do_request(session_id, f='get_email_list', offset=offset)
+        parameters = { 'offset': offset, 'f': 'get_email_list' }
+        return self._do_request(session_id, parameters=parameters)
 
     def get_email(self, email_id, session_id=None):
-        response_data = self._do_request(session_id, f='fetch_email', email_id=email_id)
+        parameters = { 'email_id': email_id, 'f': 'fetch_email' }
+        response_data = self._do_request(session_id, parameters=parameters)
         if not response_data:
             raise GuerrillaMailException('Not found: ' + str(email_id))
         return response_data
 
     def set_email_address(self, address_local_part, session_id=None):
-        return self._do_request(session_id, f='set_email_user', email_user=address_local_part)
+        parameters = { 'email_user': address_local_part, 'f': 'set_email_user' }
+        return self._do_request(session_id, parameters=parameters)
+
+    def del_email(self, email_idx, session_id=None):
+        parameters = { 'email_ids%5B%5D' : email_idx, 'f': 'del_email' }
+        return self._do_request(session_id, parameters=parameters) 
+
+    def forget_me(self, email_address, session_id=None):
+        parameters = { 'email_addr': email_address, 'f': 'forget_me' } 
+        return self._do_request(session_id, parameters=parameters)
 
 
 SETTINGS_FILE = '~/.guerrillamail'
