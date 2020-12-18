@@ -2,7 +2,7 @@ Python Guerrillamail
 ====================
 
 Python Guerrillamail is a Python client API and command line interface for
-interacting with a `Guerrillamail`_ temporary email server.
+interacting with a `Guerrillamail`_ temporary email server. Python 3 is supported.
 
 .. image:: https://travis-ci.org/ncjones/python-guerrillamail.svg?branch=master
     :target: https://travis-ci.org/ncjones/python-guerrillamail
@@ -21,14 +21,61 @@ Example Usage
 -------------
 
 Create session using auto-assigned email address, print email address and print
-id of first message in inbox:
+id of latest message in inbox:
 
 .. code-block:: python
 
     from guerrillamail import GuerrillaMailSession
     session = GuerrillaMailSession()
-    print session.get_session_state()['email_address']
-    print session.get_email_list()[0].guid
+    current_email_address = session.get_session_state()['email_address'] #this is the current email address (type string)
+    print current_email_address
+    
+    #get a list of all received emails
+    inbox = session.get_email_list()
+    
+    #each new email is appended to the beginning of the inbox list; 
+    #therefore, the latest received email always has position [0]
+    latest_received_email = inbox[0] 
+    
+    #each mail object is identified by its unique guid
+    guid = latest_received_email.guid 
+    
+    #Execute get_email function with guid as argument: this function needs to be called  in order for a mail to be read; 
+    #otherwise, the email body will be None.
+    email = session.get_email(guid) 
+    
+    #print every property of the Mail object
+    print email.guid, email.sender, email.subject, email.excerpt, email.datetime, email.body, email.read  
+    
+Create session, keep it running and print every new received email:
+
+.. code-block:: python
+
+    from guerrillamail import GuerrillaMailSession
+    from time import sleep
+
+    session = GuerrillaMailSession()
+
+    read_number = 0 #number of read emails
+    read_guids = [] #guids of read emails
+
+    while True: #keep the session running
+        inbox = session.get_email_list()
+
+        if len(inbox) > read_number: #check for unread emails:
+            for mail_object in inbox:
+                if not mail_object.guid in read_guids: #iterate over unread emails
+                    full_mail = session.get_email(mail_object.guid) #full Mail object with all properties set
+                    print full_mail.sender, full_mail.subject, full_mail.body #print mail
+                    read_number +=  1
+                    read_guids.append(mail_object.guid) #set mail guid as read
+                
+
+    sleep(10) #update every 10 seconds
+        
+
+
+    
 
 
 Example CLI Usage
