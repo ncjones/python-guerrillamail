@@ -29,11 +29,23 @@ id of latest message in inbox:
     session = GuerrillaMailSession()
     current_email_address = session.get_session_state()['email_address'] #this is the current email address (type string)
     print current_email_address
-    inbox = session.get_email_list() #get a list of all received emails
-    last_received_email = inbox[0] #each new email is appended to the beginning of the inbox list; therefore, the latest received email always has position [0]
-    guid = last_received_email.guid #each mail object is identified by its unique guid
-    email = session.get_email(guid) #this function needs to be called with guid as argument in order for a mail to be read; otherwise, the email body will be None
-    print email.guid, email.sender, email.subject, email.body, email.read #print some properties of the Mail ojbect
+    
+    #get a list of all received emails
+    inbox = session.get_email_list()
+    
+    #each new email is appended to the beginning of the inbox list; 
+    #therefore, the latest received email always has position [0]
+    latest_received_email = inbox[0] 
+    
+    #each mail object is identified by its unique guid
+    guid = latest_received_email.guid 
+    
+    #Execute get_email function with guid as argument: this function needs to be called  in order for a mail to be read; 
+    #otherwise, the email body will be None.
+    email = session.get_email(guid) 
+    
+    #print some properties of the Mail object
+    print email.guid, email.sender, email.subject, email.body, email.read 
     
 
 
