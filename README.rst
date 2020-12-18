@@ -21,14 +21,21 @@ Example Usage
 -------------
 
 Create session using auto-assigned email address, print email address and print
-id of first message in inbox:
+id of latest message in inbox:
 
 .. code-block:: python
 
     from guerrillamail import GuerrillaMailSession
     session = GuerrillaMailSession()
-    print session.get_session_state()['email_address']
-    print session.get_email_list()[0].guid
+    current_email_address = session.get_session_state()['email_address'] #this is the current email address (type string)
+    print current_email_address
+    inbox = session.get_email_list() #get a list of all received emails
+    last_received_email = inbox[0] #each new email is appended to the beginning of the inbox list; therefore, the latest received email always has position [0]
+    guid = last_received_email.guid #each mail object is identified by its unique guid
+    email = session.get_email(guid) #this function needs to be called with guid as argument in order for a mail to be read; otherwise, the email body will be None
+    print email.guid, email.sender, email.subject, email.body, email.read #print some properties of the Mail ojbect
+    
+
 
 
 Example CLI Usage
