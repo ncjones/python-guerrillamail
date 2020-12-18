@@ -46,6 +46,35 @@ id of latest message in inbox:
     
     #print every property of the Mail object
     print email.guid, email.sender, email.subject, email.excerpt, email.datetime, email.body, email.read  
+    
+Create session, keep it running and print every new received email:
+
+.. code-block:: python
+
+    from guerrillamail import GuerrillaMailSession
+    from time import sleep
+    
+    session = GuerrillaMailSession()
+    
+    read_number = 0 #number of read emails
+    read_guids = [] #guids of read emails
+    
+    while True: #keep the session running
+        inbox = session.get_email_list()
+        
+        if len(inbox) > read_number #check for unread emails:
+            for mail_object in inbox:
+                if mail_object.guid not in read_guids: #iterate over unread emails
+                    full_mail = session.get_email(mail_object.guid) #full Mail object with all properties set
+                    print full_mail.sender, full_mail.subject, full_mail.body #print mail 
+                    read_guids.append[mail_object.guid] #set mail guid as read
+                    read_number +=  1
+                    
+        sleep(10) #update every 10 seconds
+        
+
+
+    
 
 
 Example CLI Usage
