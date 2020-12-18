@@ -2,7 +2,7 @@ Python Guerrillamail
 ====================
 
 Python Guerrillamail is a Python client API and command line interface for
-interacting with a `Guerrillamail`_ temporary email server.
+interacting with a `Guerrillamail`_ temporary email server. Python 3 is supported.
 
 .. image:: https://travis-ci.org/ncjones/python-guerrillamail.svg?branch=master
     :target: https://travis-ci.org/ncjones/python-guerrillamail
@@ -53,24 +53,25 @@ Create session, keep it running and print every new received email:
 
     from guerrillamail import GuerrillaMailSession
     from time import sleep
-    
+
     session = GuerrillaMailSession()
-    
+
     read_number = 0 #number of read emails
     read_guids = [] #guids of read emails
-    
+
     while True: #keep the session running
         inbox = session.get_email_list()
-        
-        if len(inbox) > read_number #check for unread emails:
+
+        if len(inbox) > read_number: #check for unread emails:
             for mail_object in inbox:
-                if mail_object.guid not in read_guids: #iterate over unread emails
+                if not mail_object.guid in read_guids: #iterate over unread emails
                     full_mail = session.get_email(mail_object.guid) #full Mail object with all properties set
-                    print full_mail.sender, full_mail.subject, full_mail.body #print mail 
-                    read_guids.append[mail_object.guid] #set mail guid as read
+                    print full_mail.sender, full_mail.subject, full_mail.body #print mail
                     read_number +=  1
-                    
-        sleep(10) #update every 10 seconds
+                    read_guids.append(mail_object.guid) #set mail guid as read
+                
+
+    sleep(10) #update every 10 seconds
         
 
 
