@@ -44,10 +44,8 @@ id of latest message in inbox:
     #otherwise, the email body will be None.
     email = session.get_email(guid) 
     
-    #print some properties of the Mail object
-    print email.guid, email.sender, email.subject, email.body, email.read 
-    
-
+    #print every property of the Mail object
+    print email.guid, email.sender, email.subject, email.excerpt, email.datetime, email.body, email.read  
 
 
 Example CLI Usage
