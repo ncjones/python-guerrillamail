@@ -203,7 +203,6 @@ class GuerrillaMailClient(object):
     def get_email_list(self, session_id, offset=0):
         if session_id is None:
             raise ValueError('session_id is None')
-        # return self._do_request(session_id, f='get_email_list', offset=offset)
         return self._do_request(session_id, f='get_email_list', offset=offset)
 
     def get_email(self, email_id, session_id=None):
