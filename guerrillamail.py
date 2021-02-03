@@ -73,7 +73,6 @@ class Mail(object):
         dict.
         """
         identity = lambda x: x
-        # print(f"=== In from_response, response_data: {response_data}")
         return Mail(**_transform_dict(response_data, {
             'guid': ('mail_id', identity),
             'subject': ('mail_subject', identity),
@@ -165,7 +164,6 @@ class GuerrillaMailSession(object):
     def get_email_list(self, offset=0):
         self._ensure_valid_session()
         response_data = self._delegate_to_client('get_email_list', offset=offset)
-        # print(f"=== in get_email_list, response_data: {response_data}")
         email_list = response_data.get('list')
         return [Mail.from_response(e) for e in email_list] if email_list else []
 
@@ -206,9 +204,7 @@ class GuerrillaMailClient(object):
         if session_id is None:
             raise ValueError('session_id is None')
         # return self._do_request(session_id, f='get_email_list', offset=offset)
-        response_data = self._do_request(session_id, f='get_email_list', offset=offset)
-        # print(f"=== in get_email_list, returning response_data: {response_data}")
-        return response_data
+        return self._do_request(session_id, f='get_email_list', offset=offset)
 
     def get_email(self, email_id, session_id=None):
         response_data = self._do_request(session_id, f='fetch_email', email_id=email_id)
