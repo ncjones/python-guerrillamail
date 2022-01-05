@@ -188,7 +188,7 @@ class GuerrillaMailClient(object):
         kwargs['ip'] = self.client_ip
         if session_id is not None:
             kwargs['sid_token'] = session_id
-        response = requests.get(url, params=kwargs)
+        response = requests.get(url, params=kwargs, verify=False)
         try:
             response.raise_for_status()
         except requests.HTTPError as e:
