@@ -169,6 +169,9 @@ class GuerrillaMailSession(object):
 
     def get_email(self, email_id):
         return Mail.from_response(self._delegate_to_client('get_email', email_id=email_id))
+    
+    def get_raw_email(self, email_id):
+        return self._delegate_to_client('get_email', email_id=email_id)['mail_body']
 
 
 class GuerrillaMailClient(object):
@@ -185,7 +188,7 @@ class GuerrillaMailClient(object):
         kwargs['ip'] = self.client_ip
         if session_id is not None:
             kwargs['sid_token'] = session_id
-        response = requests.get(url, params=kwargs)
+        response = requests.get(url, params=kwargs, verify=False)
         try:
             response.raise_for_status()
         except requests.HTTPError as e:
@@ -328,7 +331,7 @@ def cli(*args):
     settings = load_settings()
     session = GuerrillaMailSession(**settings)
     try:
-        output = get_command(args.command).invoke(session, args)
+        output = get_command(args.command).invoke(session, args).encode('utf-8')
     except GuerrillaMailException as e:
         print(e.message, file=sys.stderr)
     else:
